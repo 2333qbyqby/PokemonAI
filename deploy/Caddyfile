@@ -1,0 +1,25 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$PUBLIC_HOST} {
+	encode zstd gzip
+
+	basic_auth {
+		{$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+	}
+
+	handle /showdown/* {
+		reverse_proxy showdown:8000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /testclient-new.html
+		file_server
+	}
+}
+
+http://127.0.0.1 {
+	respond /healthz "ok" 200
+}

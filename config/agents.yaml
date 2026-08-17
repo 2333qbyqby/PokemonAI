@@ -1,0 +1,27 @@
+format: gen9randombattle
+source_url: /pokemonai-source.tar.gz
+opponents:
+  - id: easy
+    label: 简单
+    username: PokemonAI Easy
+    backend: poke_env.random
+    description: 随机选择合法行动，适合熟悉操作。
+  - id: normal
+    label: 普通
+    username: PokemonAI Normal
+    backend: poke_env.max_base_power
+    description: 偏好高威力进攻招式。
+  - id: hard
+    label: 困难
+    username: PokemonAI Hard
+    backend: poke_env.simple_heuristics
+    description: 考虑属性、换人、场地、强化和太晶。
+  - id: expert
+    label: 专家
+    username: PokemonAI Expert
+    backend: foul_play
+    description: 使用 Foul Play 的 MCTS 搜索。
+    options:
+      search_time_ms: 500
+      search_parallelism: 1
+      search_threads: 2

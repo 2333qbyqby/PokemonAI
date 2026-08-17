@@ -1,0 +1,8 @@
+.git
+.runtime
+data
+artifacts
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+apps/showdown-client/play.pokemonshowdown.com/pokemonai-source.tar.gz

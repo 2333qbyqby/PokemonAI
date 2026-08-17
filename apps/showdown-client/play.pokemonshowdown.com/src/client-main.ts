@@ -44,6 +44,7 @@ export interface ServerInfo {
 export interface PSConfig {
 	server: ServerInfo;
 	defaultserver: ServerInfo;
+	pokemonai?: boolean;
 	includes?: {
 		mainmenuHTML?: string,
 		roomlistTopHTML?: string,
@@ -728,6 +729,12 @@ class PSUser extends PSStreamModel<PSLoginState | null> {
 		}
 		this.loggingIn = name;
 		this.update(null);
+		if (Config.pokemonai) {
+			// This private deployment runs Showdown with --no-security and has no
+			// account server. Guest names are asserted directly to the local server.
+			PS.send(`/trn ${name},0,`);
+			return;
+		}
 		PSLoginServer.rawQuery(
 			'getassertion', { userid, challstr: this.challstr }
 		).then(res => {

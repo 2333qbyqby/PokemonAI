@@ -1,0 +1,87 @@
+name: pokemonai
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in .env}
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER:?Set BASIC_AUTH_USER in .env}
+      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH:?Set BASIC_AUTH_HASH in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      showdown:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  showdown:
+    build:
+      context: .
+      dockerfile: deploy/showdown.Dockerfile
+    environment:
+      POKEMONAI_SHOWDOWN_BIND: 0.0.0.0
+      POKEMONAI_SHOWDOWN_PORT: 8000
+      POKEMONAI_SHOWDOWN_LOGS: /app/logs
+    volumes:
+      - ./data/battles:/app/logs
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "const n=require('node:net');const s=n.connect(8000,'127.0.0.1',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  baseline-ai:
+    build:
+      context: .
+      dockerfile: deploy/baseline.Dockerfile
+    depends_on:
+      showdown:
+        condition: service_healthy
+    volumes:
+      - ./data/agents/baseline:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket;s=socket.create_connection(('showdown',8000),2);s.close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  expert-ai:
+    build:
+      context: .
+      dockerfile: deploy/expert.Dockerfile
+      args:
+        RUST_VERSION: "1.97.1"
+        RUSTUP_VERSION: "1.29.0"
+    environment:
+      POKEMONAI_SHOWDOWN_WS: ws://showdown:8000/showdown/websocket
+    depends_on:
+      showdown:
+        condition: service_healthy
+    volumes:
+      - ./data/agents/foul-play:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket;s=socket.create_connection(('showdown',8000),2);s.close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

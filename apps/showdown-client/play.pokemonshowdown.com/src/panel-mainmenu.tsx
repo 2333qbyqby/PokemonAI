@@ -18,6 +18,10 @@ import { TeamBox, type SelectType } from "./panel-teamdropdown";
 import { Dex, toID, type ID } from "./battle-dex";
 import type { Args } from "./battle-text-parser";
 import { BattleLog } from "./battle-log"; // optional
+import {
+	challengePokemonAI, rememberPokemonAIChallenge, resumePendingPokemonAIChallenge,
+} from "./pokemonai";
+import { PokemonAIConfig } from "./pokemonai-config";
 
 export type RoomInfo = {
 	title: string, id?: RoomID, desc?: string, userCount?: number, section?: string, privacy?: 'hidden',
@@ -126,6 +130,13 @@ export class MainMenuRoom extends PSRoom {
 		case 'challstr': {
 			const [, challstr] = args;
 			PS.user.challstr = challstr;
+			if (Config.testclient) {
+				// This deployment intentionally has no account/login-server session.
+				// Do not let an optional upstream upkeep request block guest naming.
+				PS.user.initializing = false;
+				PS.user.update(null);
+				return;
+			}
 			PSLoginServer.query(
 				'upkeep', { challstr }
 			).then(res => {
@@ -144,11 +155,21 @@ export class MainMenuRoom extends PSRoom {
 		} case 'updateuser': {
 			const [, fullName, namedCode, avatar, settingsJSON] = args;
 			const named = namedCode === '1';
-			if (named) PS.user.initializing = false;
+			// PokemonAI deliberately uses guest identities only. The upstream client
+			// waits for an optional login-server upkeep request before showing the
+			// nickname action; the self-hosted test client should be usable without it.
+			if (named || Config.testclient) PS.user.initializing = false;
 			if (settingsJSON) {
 				PS.prefs.set('serversettings', { ...PS.prefs.serversettings, ...JSON.parse(settingsJSON) });
 			}
 			PS.user.setName(fullName, named, avatar);
+			if (named) {
+				if (Config.pokemonai) {
+					PS.user.loggingIn = null;
+					if (PS.rooms.login) PS.leave('login' as RoomID);
+				}
+				setTimeout(resumePendingPokemonAIChallenge, 0);
+			}
 			PS.teams.loadRemoteTeams();
 			return;
 		} case 'updatechallenges': {
@@ -743,6 +764,13 @@ class MainMenuPanel extends PSRoomPanel<MainMenuRoom> {
 				<div class="mainmenu-left">
 					{this.renderGames()}
 
+					<div class="menugroup">
+						<p><a class={"mainmenu1 mainmenu big button" + (PS.isOffline ? ' disabled' : '')} href="ai-battle">
+							<strong>AI 对战</strong><br />
+							<small>选择难度，立即开始 Gen 9 Random Battle</small>
+						</a></p>
+					</div>
+
 					{this.renderSearchButton()}
 
 					<div class="menugroup">
@@ -774,12 +802,59 @@ class MainMenuPanel extends PSRoomPanel<MainMenuRoom> {
 						<a href="//smogon.com/forums/" target="_blank">Forum</a> | {}
 						<a href={`//${Config.routes.root}/rules`} target="_blank">Rules</a> | {}
 						<a href={`//${Config.routes.root}/credits`} target="_blank">Credits</a> | {}
-						<a href={`//${Config.routes.root}/privacy`} target="_blank">Privacy</a>
+						<a href={`//${Config.routes.root}/privacy`} target="_blank">Privacy</a> | {}
+						<a href={PokemonAIConfig.sourceUrl} target="_blank">PokemonAI 源码</a>
 					</small>
 					<CCPAIntercept />
 				</div>
 			</div>
 		</PSPanelWrapper>;
+	}
+}
+
+class AIBattlePanel extends PSRoomPanel {
+	static readonly id = 'aibattle';
+	static readonly routes = ['ai-battle'];
+	static readonly title = 'AI 对战';
+	static readonly location = 'modal-popup';
+
+	chooseOpponent = (ev: MouseEvent) => {
+		const button = ev.currentTarget as HTMLButtonElement;
+		const opponent = PokemonAIConfig.opponents.find(entry => entry.id === button.value);
+		if (!opponent) return;
+		PS.closePopup();
+		challengePokemonAI(opponent);
+	};
+	rememberOpponent = (ev: MouseEvent) => {
+		const link = ev.currentTarget as HTMLAnchorElement;
+		const opponent = PokemonAIConfig.opponents.find(entry => entry.id === link.dataset.opponentid);
+		if (opponent) {
+			rememberPokemonAIChallenge(opponent);
+			PS.closePopup();
+		}
+	};
+
+	override render() {
+		return <PSPanelWrapper room={this.props.room} width={420}><div class="pad">
+			<h2>选择 AI 难度</h2>
+			<p>固定格式：<strong>Gen 9 Random Battle</strong></p>
+			<div class="buttonbar" style="display:grid;gap:8px">
+				{PokemonAIConfig.opponents.map(opponent => PS.user.named ? <button
+					class="button" value={opponent.id} onClick={this.chooseOpponent}
+					style="text-align:left;padding:10px"
+				>
+					<strong>{opponent.label}</strong><br />
+					<small>{opponent.description}</small>
+				</button> : <a
+					class="button" href="login" data-opponentid={opponent.id} onClick={this.rememberOpponent}
+					style="text-align:left;padding:10px"
+				>
+					<strong>{opponent.label}</strong><br />
+					<small>{opponent.description}</small>
+				</a>)}
+			</div>
+			<p><small>机器人离线时，Showdown 会显示挑战失败提示。</small></p>
+		</div></PSPanelWrapper>;
 	}
 }
 
@@ -1102,4 +1177,4 @@ export class TeamForm extends preact.Component<{
 	}
 }
 
-PS.addRoomType(NewsPanel, MainMenuPanel);
+PS.addRoomType(NewsPanel, AIBattlePanel, MainMenuPanel);

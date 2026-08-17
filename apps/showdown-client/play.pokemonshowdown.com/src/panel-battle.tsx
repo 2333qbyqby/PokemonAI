@@ -23,6 +23,7 @@ import type { Args } from "./battle-text-parser";
 import { ModifiableValue } from "./battle-tooltips";
 import { Net } from "./client-connection";
 import { BattleLog } from "./battle-log";
+import { challengePokemonAI, findPokemonAIOpponent } from "./pokemonai";
 
 type BattleDesc = {
 	id: RoomID,
@@ -1264,6 +1265,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 	renderAfterBattleControls() {
 		const room = this.props.room;
 		const isNotTiny = room.width > 700;
+		const aiOpponent = findPokemonAIOpponent(room.battle.farSide.id || room.battle.farSide.name);
 		return <div class="inline-controls">
 			<p>
 				<span style="float: right">
@@ -1297,9 +1299,22 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 					<button class="button" data-cmd="/close">
 						<strong>Main menu</strong><br /><small>(closes this battle)</small>
 					</button> {}
-					<button class="button" data-cmd={`/closeand /challenge ${room.battle.farSide.id},${room.battle.tier}`}>
+					{aiOpponent ? <>
+						<button
+							class="button"
+							onClick={() => {
+								PS.leave(room.id);
+								challengePokemonAI(aiOpponent);
+							}}
+						>
+							<strong>同难度再来一局</strong><br /><small>{aiOpponent.label}</small>
+						</button> {}
+						<button class="button" data-href="ai-battle">
+							<strong>更换难度</strong><br /><small>选择其他 AI</small>
+						</button>
+					</> : <button class="button" data-cmd={`/closeand /challenge ${room.battle.farSide.id},${room.battle.tier}`}>
 						<strong>Rematch</strong><br /><small>(closes this battle)</small>
-					</button>
+					</button>}
 				</p>
 			) : (
 				<p>

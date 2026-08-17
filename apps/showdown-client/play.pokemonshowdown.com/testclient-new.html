@@ -85,6 +85,7 @@
 			document.head.appendChild(scriptEl);
 		}
 		Config.testclient = true;
+		Config.pokemonai = true;
 		(function() {
 			if (location.search !== '') {
 				var m = /\?~~(([^:\/]*)(:[0-9]*)?)/.exec(location.search);
@@ -97,6 +98,17 @@
 				} else {
 					alert('Unrecognised query string syntax: ' + location.search);
 				}
+			} else {
+				// Production is served behind Caddy on the same HTTPS origin.
+				// Local development supplies ?~~host:8000 and keeps using plain HTTP.
+				var secure = location.protocol === 'https:';
+				Config.defaultserver = {
+					id: 'pokemonai',
+					host: location.hostname,
+					port: secure ? 443 : 8000,
+					httpport: secure ? 443 : undefined,
+					registered: false
+				};
 			}
 		})();
 	</script>
@@ -108,14 +120,16 @@
 	<script src="js/battle-dex.js"></script>
 	<script src="js/battle-teams.js"></script>
 	<script src="js/battle-text-parser.js"></script>
-	<script src="js/client-main.js"></script>
+	<script src="js/client-main.js?pokemonai-v1-final"></script>
 	<script nomodule src="js/lib/sockjs-1.4.0-nwjsfix.min.js"></script>
 	<script src="js/client-connection.js"></script>
 	<script> Net.defaultRoute = 'https://play.pokemonshowdown.com'; </script>
 
 	<script src="js/lib/preact.min.js"></script>
 	<script src="js/panels.js"></script>
-	<script src="js/panel-mainmenu.js"></script>
+	<script src="js/pokemonai-config.js?pokemonai-v1-final"></script>
+	<script src="js/pokemonai.js?pokemonai-v1-final"></script>
+	<script src="js/panel-mainmenu.js?pokemonai-v1-final"></script>
 	<script src="js/panel-rooms.js"></script>
 	<script src="js/panel-topbar.js"></script>
 	<!-- at this point, the main view is loaded and usable -->
@@ -144,7 +158,7 @@
 	<script src="js/battle-tooltips.js"></script>
 	<script src="js/battle.js"></script>
 	<script src="js/battle-choices.js"></script>
-	<script src="js/panel-battle.js"></script>
+	<script src="js/panel-battle.js?pokemonai-v1-final"></script>
 
 	<script src="data/pokedex.js" onerror="loadRemoteData(this.src)"></script>
 	<script src="data/moves.js" onerror="loadRemoteData(this.src)"></script>
