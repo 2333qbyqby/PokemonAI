@@ -49,8 +49,16 @@ try {
         )
         $expertCommandJson = & $FoulPlayPython @expertRegistryArguments
         if ($LASTEXITCODE -ne 0) { throw 'Could not resolve Foul Play arguments from config/agents.yaml' }
-        $expertCommand = @($expertCommandJson | ConvertFrom-Json)
-        $expertArguments = @($expertCommand | Select-Object -Skip 1)
+        # Windows PowerShell 5.1 returns a JSON array as one nested pipeline
+        # object, while PowerShell 7 enumerates it. Copy items explicitly so
+        # both hosts produce the same string[] for Start-Process.
+        $parsedExpertCommand = ConvertFrom-Json -InputObject ($expertCommandJson -join "`n")
+        $expertCommand = New-Object 'System.Collections.Generic.List[string]'
+        foreach ($argument in $parsedExpertCommand) {
+            [void]$expertCommand.Add([string]$argument)
+        }
+        if ($expertCommand.Count -lt 2) { throw 'Foul Play argument registry returned an empty command' }
+        $expertArguments = $expertCommand.GetRange(1, $expertCommand.Count - 1).ToArray()
     }
     $webArguments = @((Join-Path $ProjectRoot 'services\web-server\server.mjs'))
 
