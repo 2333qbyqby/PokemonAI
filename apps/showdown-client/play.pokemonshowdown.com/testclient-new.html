@@ -2,11 +2,15 @@
 <html><head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0" />
-	<title>Showdown!</title>
+	<title>PokémonAI VGC</title>
 	<link rel="shortcut icon" href="favicon.ico" id="dynamic-favicon" />
 	<link rel="stylesheet" href="style/battle.css" />
 	<link rel="stylesheet" href="style/client2.css" />
 	<link rel="stylesheet" href="style/utilichart.css" />
+	<link rel="stylesheet" href="style/pokemonai.css?v=2" />
+	<link rel="manifest" href="manifest.webmanifest" />
+	<meta name="theme-color" content="#20242b" />
+	<meta name="apple-mobile-web-app-capable" content="yes" />
 	<meta name="robots" content="noindex" />
 	<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
 	<!--[if lte IE 8]><script>
@@ -16,7 +20,7 @@
 	<div id="ps-frame">
 		<div id="header" class="header">
 			<div class="maintabbarbottom"></div>
-			<img class="logo" src="https://play.pokemonshowdown.com/favicon-256.png" alt="Pokémon Showdown! (beta)" width="50" height="50">
+			<img class="logo" src="favicon-256.png" alt="Pokémon Showdown! (beta)" width="50" height="50">
 		</div>
 		<div class="ps-room scrollable" id="room-">
 			<div class="mainmenu-mini-windows">
@@ -182,4 +186,11 @@
 
 	<script src="js/client-endload.js?"></script>
 
+	<script>
+		if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+			window.addEventListener('load', function () {
+				navigator.serviceWorker.register('/pokemonai-sw.js').catch(function () {});
+			});
+		}
+	</script>
 </body></html>

@@ -1,6 +1,6 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
-import { extname, join, normalize, resolve } from 'node:path';
+import { extname, join, normalize, resolve, sep } from 'node:path';
 
 const root = resolve(process.env.POKEMONAI_WEB_ROOT || 'apps/showdown-client/play.pokemonshowdown.com');
 const host = process.env.POKEMONAI_WEB_BIND || '127.0.0.1';
@@ -14,6 +14,7 @@ const contentTypes = {
   '.ico': 'image/x-icon',
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
   '.txt': 'text/plain; charset=utf-8',
@@ -29,15 +30,22 @@ const server = createServer((request, response) => {
     return;
   }
   if (requestUrl.pathname === '/') {
-    const hostname = (request.headers.host || '127.0.0.1').replace(/:\d+$/, '');
+    const hostname = requestUrl.hostname || '127.0.0.1';
     response.writeHead(302, { location: `/testclient-new.html?~~${hostname}:${showdownPort}` });
     response.end();
     return;
   }
 
-  const decoded = decodeURIComponent(requestUrl.pathname);
+  let decoded;
+  try {
+    decoded = decodeURIComponent(requestUrl.pathname);
+  } catch {
+    response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
+    response.end('Bad request');
+    return;
+  }
   const candidate = resolve(join(root, normalize(decoded).replace(/^[/\\]+/, '')));
-  if (!candidate.startsWith(root) || !existsSync(candidate) || !statSync(candidate).isFile()) {
+  if (!candidate.startsWith(`${root}${sep}`) || !existsSync(candidate) || !statSync(candidate).isFile()) {
     response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
     response.end('Not found');
     return;

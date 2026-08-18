@@ -11,6 +11,10 @@ Write-Host 'Running configuration and baseline tests...'
 & $BaselinePython -m pytest (Join-Path $ProjectRoot 'services\baseline-ai\tests')
 if ($LASTEXITCODE -ne 0) { throw 'Python tests failed' }
 
+Write-Host 'Rebuilding and validating team library...'
+& $BaselinePython (Join-Path $ProjectRoot 'scripts\team-library.py') build --project-root $ProjectRoot
+if ($LASTEXITCODE -ne 0) { throw 'Team library build failed' }
+
 Write-Host 'Regenerating client configuration...'
 & $BaselinePython (Join-Path $ProjectRoot 'scripts\generate-client-config.py') `
     --config (Join-Path $ProjectRoot 'config\agents.yaml') `
@@ -31,6 +35,10 @@ Write-Host 'Running client unit tests...'
 $clientTests = Get-ChildItem -LiteralPath (Join-Path $clientRoot 'test') -Filter '*.js' |
     Select-Object -ExpandProperty FullName
 Invoke-LocalNodeScript -WorkingDirectory $clientRoot -Script '--test' -Arguments $clientTests
+Write-Host 'Running local web server tests...'
+Invoke-LocalNodeScript -WorkingDirectory $ProjectRoot -Script '--test' -Arguments @(
+    (Join-Path $ProjectRoot 'services\web-server\server.test.mjs')
+)
 
 if ($Integration) {
     Write-Host 'Running local service smoke test...'

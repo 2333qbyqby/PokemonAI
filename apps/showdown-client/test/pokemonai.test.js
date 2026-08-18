@@ -12,8 +12,7 @@ function makeContext() {
 	const storage = new Map();
 	const calls = {alerts: [], joins: [], sends: []};
 	const context = {
-		Date,
-		console,
+		Date, JSON, console,
 		localStorage: {
 			getItem: key => storage.get(key) ?? null,
 			removeItem: key => storage.delete(key),
@@ -33,8 +32,9 @@ function makeContext() {
 	vm.createContext(context);
 	vm.runInContext(
 		`${configSource}\n${aiSource}\nthis.api = {` +
-		`PokemonAIConfig, findPokemonAIOpponent, challengePokemonAI, ` +
-		`resumePendingPokemonAIChallenge, buildPokemonAIChallengeCommand, buildPokemonAIRematchCommand};`,
+		`PokemonAIConfig, findPokemonAIOpponent, findPokemonAIFormat, challengePokemonAI, ` +
+		`rememberPokemonAITeam, getRememberedPokemonAITeam, resumePendingPokemonAIChallenge, ` +
+		`buildPokemonAIChallengeCommand, buildPokemonAIRematchCommand};`,
 		context
 	);
 	return {api: context.api, calls, context, storage};
@@ -44,37 +44,69 @@ describe('PokemonAI client flow', () => {
 	let fixture;
 	beforeEach(() => { fixture = makeContext(); });
 
-	it('maps generated config and builds native Showdown commands', () => {
+	it('maps each opponent to its own Showdown format', () => {
 		const hard = fixture.api.findPokemonAIOpponent('PokemonAI Hard');
-		assert.equal(hard.id, 'hard');
+		assert.equal(hard.id, 'random-hard');
 		assert.equal(
 			fixture.api.buildPokemonAIChallengeCommand(hard),
 			'/challenge PokemonAI Hard, gen9randombattle'
 		);
+		const vgc = fixture.api.findPokemonAIOpponent('PokemonAI VGC 8');
 		assert.equal(
-			fixture.api.buildPokemonAIRematchCommand(hard),
-			'/closeand /challenge PokemonAI Hard, gen9randombattle'
+			fixture.api.buildPokemonAIChallengeCommand(vgc),
+			'/challenge PokemonAI VGC 8, gen9championsvgc2026regmb'
 		);
 	});
 
-	it('opens the guest nickname flow and resumes the pending challenge', () => {
+	it('preserves a selected team through guest naming', () => {
 		fixture.context.PS.user.named = false;
-		fixture.api.challengePokemonAI(fixture.api.PokemonAIConfig.opponents[0]);
+		const vgc = fixture.api.findPokemonAIOpponent('PokemonAI VGC 3');
+		assert.equal(fixture.api.challengePokemonAI(vgc, {packedTeam: 'packed-team', name: 'My VGC Team'}), true);
 		assert.equal(fixture.calls.joins[0][0], 'login');
 		assert.deepEqual(fixture.calls.sends, []);
 
 		fixture.context.PS.user.named = true;
 		fixture.api.resumePendingPokemonAIChallenge();
 		assert.deepEqual(fixture.calls.sends, [
-			'/utm ',
-			'/challenge PokemonAI Easy, gen9randombattle',
+			'/utm packed-team',
+			'/challenge PokemonAI VGC 3, gen9championsvgc2026regmb',
 		]);
+		const remembered = fixture.api.getRememberedPokemonAITeam(vgc.formatId);
+		assert.equal(remembered.packedTeam, 'packed-team');
+		assert.equal(remembered.name, 'My VGC Team');
+	});
+
+	it('can use a catalogue team as the default for quick battle', () => {
+		const vgc = fixture.api.findPokemonAIOpponent('PokemonAI VGC 2');
+		fixture.api.rememberPokemonAITeam(vgc.formatId, 'catalogue-team', 'Catalogue Team');
+		assert.equal(fixture.api.challengePokemonAI(vgc), true);
+		assert.deepEqual(fixture.calls.sends, [
+			'/utm catalogue-team',
+			'/challenge PokemonAI VGC 2, gen9championsvgc2026regmb',
+		]);
+	});
+
+	it('removes command separators from remembered packed teams', () => {
+		const vgc = fixture.api.findPokemonAIOpponent('PokemonAI VGC 1');
+		fixture.api.rememberPokemonAITeam(vgc.formatId, 'safe-team\n/forfeit', 'Sanitized');
+		assert.equal(fixture.api.challengePokemonAI(vgc), true);
+		assert.equal(fixture.calls.sends[0], '/utm safe-team/forfeit');
+		assert.equal(fixture.calls.sends.length, 2);
+	});
+
+
+	it('requires a team for fixed Champions VGC formats', () => {
+		const vgc = fixture.api.findPokemonAIOpponent('PokemonAI VGC 5');
+		assert.equal(fixture.api.challengePokemonAI(vgc), false);
+		assert.equal(fixture.calls.alerts.length, 1);
+		assert.match(fixture.calls.alerts[0][0], /阵容库|Teambuilder/);
+		assert.deepEqual(fixture.calls.sends, []);
 		assert.equal(fixture.storage.size, 0);
 	});
 
 	it('shows an error and sends nothing while disconnected', () => {
 		fixture.context.PS.isOffline = true;
-		fixture.api.challengePokemonAI(fixture.api.PokemonAIConfig.opponents[3]);
+		assert.equal(fixture.api.challengePokemonAI(fixture.api.PokemonAIConfig.opponents[0]), false);
 		assert.equal(fixture.calls.alerts.length, 1);
 		assert.deepEqual(fixture.calls.sends, []);
 		assert.equal(fixture.storage.size, 0);

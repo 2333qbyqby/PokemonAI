@@ -1,0 +1,956 @@
+{
+  "schema_version": 1,
+  "team_count": 4,
+  "teams": [
+    {
+      "id": "vgc-bench-samples-a532493191ae",
+      "name": "MB1",
+      "format_id": "champions-reg-mb",
+      "pool": "champions-reg-mb",
+      "source_id": "vgc-bench-samples",
+      "source_label": "VGC-Bench Reg M-B 样例阵容",
+      "source_repository": "cameronangliss/vgc-bench",
+      "source_commit": "d79f9532947ac114dce1dda2456a590afcd375b2",
+      "source_path": "teams/reg_mb/MB1.txt",
+      "author": null,
+      "license": "MIT",
+      "tags": [
+        "速度控制",
+        "戏法空间",
+        "重定向",
+        "击掌奇袭"
+      ],
+      "archetype": "戏法空间",
+      "paste": "Excadrill @ Focus Sash\nAbility: Sand Rush\nLevel: 50\nEVs: 1 HP / 32 Atk / 1 Def / 32 Spe\nAdamant Nature\n- Earthquake\n- Iron Head\n- Rock Slide\n- Protect\n\nTyranitar @ Tyranitarite\nAbility: Sand Stream\nLevel: 50\nEVs: 27 HP / 26 Atk / 1 Def / 12 Spe\nAdamant Nature\n- Rock Slide\n- Knock Off\n- Low Kick\n- Protect\n\nStaraptor @ Staraptite\nAbility: Intimidate\nLevel: 50\nEVs: 32 HP / 4 Atk / 30 Spe\nJolly Nature\n- Brave Bird\n- Close Combat\n- Tailwind\n- Protect\n\nBasculegion @ Choice Scarf\nAbility: Adaptability\nLevel: 50\nEVs: 1 HP / 18 Atk / 14 Def / 1 SpD / 32 Spe\nAdamant Nature\n- Wave Crash\n- Last Respects\n- Flip Turn\n- Aqua Jet\n\nSinistcha @ Sitrus Berry\nAbility: Hospitality\nLevel: 50\nEVs: 32 HP / 4 Def / 30 SpD\nCalm Nature\n- Matcha Gotcha\n- Rage Powder\n- Life Dew\n- Trick Room\n\nRaichu @ Shuca Berry\nAbility: Lightning Rod\nLevel: 50\nEVs: 17 HP / 17 Def / 32 Spe\nTimid Nature\n- Fake Out\n- Encore\n- Charm\n- Volt Switch",
+      "packed": "Excadrill||focussash|sandrush|earthquake,ironhead,rockslide,protect|Adamant|1,32,1,,,32||||50|]Tyranitar||tyranitarite|sandstream|rockslide,knockoff,lowkick,protect|Adamant|27,26,1,,,12||||50|]Staraptor||staraptite|intimidate|bravebird,closecombat,tailwind,protect|Jolly|32,4,,,,30||||50|]Basculegion||choicescarf|adaptability|wavecrash,lastrespects,flipturn,aquajet|Adamant|1,18,14,,1,32||||50|]Sinistcha||sitrusberry|hospitality|matchagotcha,ragepowder,lifedew,trickroom|Calm|32,,4,,30,||||50|]Raichu||shucaberry|lightningrod|fakeout,encore,charm,voltswitch|Timid|17,,17,,,32||||50|",
+      "roster": [
+        {
+          "species": "excadrill",
+          "item": "focussash",
+          "ability": "sandrush",
+          "moves": [
+            "earthquake",
+            "ironhead",
+            "protect",
+            "rockslide"
+          ],
+          "nature": "adamant",
+          "evs": {
+            "hp": 1,
+            "atk": 32,
+            "def": 1,
+            "spa": 0,
+            "spd": 0,
+            "spe": 32
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Excadrill",
+          "species_name": "Excadrill"
+        },
+        {
+          "species": "tyranitar",
+          "item": "tyranitarite",
+          "ability": "sandstream",
+          "moves": [
+            "knockoff",
+            "lowkick",
+            "protect",
+            "rockslide"
+          ],
+          "nature": "adamant",
+          "evs": {
+            "hp": 27,
+            "atk": 26,
+            "def": 1,
+            "spa": 0,
+            "spd": 0,
+            "spe": 12
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Tyranitar",
+          "species_name": "Tyranitar"
+        },
+        {
+          "species": "staraptor",
+          "item": "staraptite",
+          "ability": "intimidate",
+          "moves": [
+            "bravebird",
+            "closecombat",
+            "protect",
+            "tailwind"
+          ],
+          "nature": "jolly",
+          "evs": {
+            "hp": 32,
+            "atk": 4,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 30
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Staraptor",
+          "species_name": "Staraptor"
+        },
+        {
+          "species": "basculegion",
+          "item": "choicescarf",
+          "ability": "adaptability",
+          "moves": [
+            "aquajet",
+            "flipturn",
+            "lastrespects",
+            "wavecrash"
+          ],
+          "nature": "adamant",
+          "evs": {
+            "hp": 1,
+            "atk": 18,
+            "def": 14,
+            "spa": 0,
+            "spd": 1,
+            "spe": 32
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Basculegion",
+          "species_name": "Basculegion"
+        },
+        {
+          "species": "sinistcha",
+          "item": "sitrusberry",
+          "ability": "hospitality",
+          "moves": [
+            "lifedew",
+            "matchagotcha",
+            "ragepowder",
+            "trickroom"
+          ],
+          "nature": "calm",
+          "evs": {
+            "hp": 32,
+            "atk": 0,
+            "def": 4,
+            "spa": 0,
+            "spd": 30,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Sinistcha",
+          "species_name": "Sinistcha"
+        },
+        {
+          "species": "raichu",
+          "item": "shucaberry",
+          "ability": "lightningrod",
+          "moves": [
+            "charm",
+            "encore",
+            "fakeout",
+            "voltswitch"
+          ],
+          "nature": "timid",
+          "evs": {
+            "hp": 17,
+            "atk": 0,
+            "def": 17,
+            "spa": 0,
+            "spd": 0,
+            "spe": 32
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Raichu",
+          "species_name": "Raichu"
+        }
+      ],
+      "fingerprint": "a532493191aea72b1e89847708c9c5fecf4613b9468c2f64faa01dbaf83101ff",
+      "validation_status": "prevalidated",
+      "validation_errors": [],
+      "duplicate_sources": []
+    },
+    {
+      "id": "vgc-bench-samples-5329d82aec58",
+      "name": "MB2",
+      "format_id": "champions-reg-mb",
+      "pool": "champions-reg-mb",
+      "source_id": "vgc-bench-samples",
+      "source_label": "VGC-Bench Reg M-B 样例阵容",
+      "source_repository": "cameronangliss/vgc-bench",
+      "source_commit": "d79f9532947ac114dce1dda2456a590afcd375b2",
+      "source_path": "teams/reg_mb/MB2.txt",
+      "author": null,
+      "license": "MIT",
+      "tags": [
+        "速度控制",
+        "雨天",
+        "击掌奇袭",
+        "双墙"
+      ],
+      "archetype": "顺风进攻",
+      "paste": "Swampert @ Swampertite\nAbility: Torrent\nLevel: 50\nEVs: 2 HP / 32 Atk / 32 Spe\nAdamant Nature\n- Wave Crash\n- Earthquake\n- Rock Slide\n- Protect\n\nGrimmsnarl @ Light Clay\nAbility: Prankster\nLevel: 50\nEVs: 32 HP / 32 Def / 2 SpD\nImpish Nature\n- Foul Play\n- Fake Out\n- Light Screen\n- Parting Shot\n\nPelipper @ Sitrus Berry\nAbility: Drizzle\nLevel: 50\nEVs: 32 HP / 31 SpA / 3 Spe\nModest Nature\n- Weather Ball\n- Hurricane\n- Tailwind\n- Protect\n\nBasculegion @ Life Orb\nAbility: Swift Swim\nLevel: 50\nEVs: 32 Atk / 2 Def / 32 Spe\nAdamant Nature\n- Wave Crash\n- Aqua Jet\n- Last Respects\n- Protect\n\nCorviknight @ Leftovers\nAbility: Mirror Armor\nLevel: 50\nEVs: 32 HP / 27 SpD / 7 Spe\nImpish Nature\n- Iron Head\n- Body Press\n- Bulk Up\n- Roost\n\nDragonite @ Dragoninite\nAbility: Inner Focus\nLevel: 50\nEVs: 1 HP / 32 SpA / 1 SpD / 32 Spe\nTimid Nature\n- Draco Meteor\n- Hurricane\n- Thunderbolt\n- Protect",
+      "packed": "Swampert||swampertite|torrent|wavecrash,earthquake,rockslide,protect|Adamant|2,32,,,,32||||50|]Grimmsnarl||lightclay|prankster|foulplay,fakeout,lightscreen,partingshot|Impish|32,,32,,2,|M|||50|]Pelipper||sitrusberry|drizzle|weatherball,hurricane,tailwind,protect|Modest|32,,,31,,3||||50|]Basculegion||lifeorb|swiftswim|wavecrash,aquajet,lastrespects,protect|Adamant|,32,2,,,32|M|||50|]Corviknight||leftovers|mirrorarmor|ironhead,bodypress,bulkup,roost|Impish|32,,,,27,7||||50|]Dragonite||dragoninite|innerfocus|dracometeor,hurricane,thunderbolt,protect|Timid|1,,,32,1,32||||50|",
+      "roster": [
+        {
+          "species": "swampert",
+          "item": "swampertite",
+          "ability": "torrent",
+          "moves": [
+            "earthquake",
+            "protect",
+            "rockslide",
+            "wavecrash"
+          ],
+          "nature": "adamant",
+          "evs": {
+            "hp": 2,
+            "atk": 32,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 32
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Swampert",
+          "species_name": "Swampert"
+        },
+        {
+          "species": "grimmsnarl",
+          "item": "lightclay",
+          "ability": "prankster",
+          "moves": [
+            "fakeout",
+            "foulplay",
+            "lightscreen",
+            "partingshot"
+          ],
+          "nature": "impish",
+          "evs": {
+            "hp": 32,
+            "atk": 0,
+            "def": 32,
+            "spa": 0,
+            "spd": 2,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "M",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Grimmsnarl",
+          "species_name": "Grimmsnarl"
+        },
+        {
+          "species": "pelipper",
+          "item": "sitrusberry",
+          "ability": "drizzle",
+          "moves": [
+            "hurricane",
+            "protect",
+            "tailwind",
+            "weatherball"
+          ],
+          "nature": "modest",
+          "evs": {
+            "hp": 32,
+            "atk": 0,
+            "def": 0,
+            "spa": 31,
+            "spd": 0,
+            "spe": 3
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Pelipper",
+          "species_name": "Pelipper"
+        },
+        {
+          "species": "basculegion",
+          "item": "lifeorb",
+          "ability": "swiftswim",
+          "moves": [
+            "aquajet",
+            "lastrespects",
+            "protect",
+            "wavecrash"
+          ],
+          "nature": "adamant",
+          "evs": {
+            "hp": 0,
+            "atk": 32,
+            "def": 2,
+            "spa": 0,
+            "spd": 0,
+            "spe": 32
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "M",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Basculegion",
+          "species_name": "Basculegion"
+        },
+        {
+          "species": "corviknight",
+          "item": "leftovers",
+          "ability": "mirrorarmor",
+          "moves": [
+            "bodypress",
+            "bulkup",
+            "ironhead",
+            "roost"
+          ],
+          "nature": "impish",
+          "evs": {
+            "hp": 32,
+            "atk": 0,
+            "def": 0,
+            "spa": 0,
+            "spd": 27,
+            "spe": 7
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Corviknight",
+          "species_name": "Corviknight"
+        },
+        {
+          "species": "dragonite",
+          "item": "dragoninite",
+          "ability": "innerfocus",
+          "moves": [
+            "dracometeor",
+            "hurricane",
+            "protect",
+            "thunderbolt"
+          ],
+          "nature": "timid",
+          "evs": {
+            "hp": 1,
+            "atk": 0,
+            "def": 0,
+            "spa": 32,
+            "spd": 1,
+            "spe": 32
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Dragonite",
+          "species_name": "Dragonite"
+        }
+      ],
+      "fingerprint": "5329d82aec58d7dbf85901601a6121b54fb73ee9adc6b6af0ec6c3e19f25d6e7",
+      "validation_status": "prevalidated",
+      "validation_errors": [],
+      "duplicate_sources": []
+    },
+    {
+      "id": "vgc-bench-samples-6c4bee6977bb",
+      "name": "MB3",
+      "format_id": "champions-reg-mb",
+      "pool": "champions-reg-mb",
+      "source_id": "vgc-bench-samples",
+      "source_label": "VGC-Bench Reg M-B 样例阵容",
+      "source_repository": "cameronangliss/vgc-bench",
+      "source_commit": "d79f9532947ac114dce1dda2456a590afcd375b2",
+      "source_path": "teams/reg_mb/MB3.txt",
+      "author": null,
+      "license": "MIT",
+      "tags": [
+        "速度控制",
+        "戏法空间",
+        "雨天",
+        "重定向",
+        "击掌奇袭"
+      ],
+      "archetype": "戏法空间",
+      "paste": "Swampert @ Swampertite\nAbility: Torrent\nLevel: 50\nEVs: 24 HP / 32 Atk / 10 Spe\nAdamant Nature\n- Wave Crash\n- Ice Punch\n- Earthquake\n- Protect\n\nPelipper @ Focus Sash\nAbility: Drizzle\nLevel: 50\nEVs: 2 HP / 32 SpA / 32 Spe\nModest Nature\n- Hurricane\n- Tailwind\n- Weather Ball\n- Protect\n\nGardevoir @ Gardevoirite\nAbility: Telepathy\nLevel: 50\nEVs: 32 HP / 6 Def / 28 SpA\nModest Nature\n- Hyper Voice\n- Protect\n- Psyshock\n- Trick Room\n\nKingambit @ Chople Berry\nAbility: Defiant\nLevel: 50\nEVs: 32 HP / 32 Atk\nAdamant Nature\n- Iron Head\n- Low Kick\n- Sucker Punch\n- Kowtow Cleave\n\nSinistcha @ Kasib Berry\nAbility: Hospitality\nLevel: 50\nEVs: 32 HP / 14 Def / 20 SpD\nCalm Nature\n- Matcha Gotcha\n- Rage Powder\n- Trick Room\n- Protect\n\nIncineroar @ Sitrus Berry\nAbility: Intimidate\nLevel: 50\nEVs: 32 HP / 14 Def / 20 SpD\nCareful Nature\n- Flare Blitz\n- Fake Out\n- Throat Chop\n- Parting Shot",
+      "packed": "Swampert||swampertite|torrent|wavecrash,icepunch,earthquake,protect|Adamant|24,32,,,,10||||50|]Pelipper||focussash|drizzle|hurricane,tailwind,weatherball,protect|Modest|2,,,32,,32||||50|]Gardevoir||gardevoirite|telepathy|hypervoice,protect,psyshock,trickroom|Modest|32,,6,28,,||||50|]Kingambit||chopleberry|defiant|ironhead,lowkick,suckerpunch,kowtowcleave|Adamant|32,32,,,,||||50|]Sinistcha||kasibberry|hospitality|matchagotcha,ragepowder,trickroom,protect|Calm|32,,14,,20,||||50|]Incineroar||sitrusberry|intimidate|flareblitz,fakeout,throatchop,partingshot|Careful|32,,14,,20,||||50|",
+      "roster": [
+        {
+          "species": "swampert",
+          "item": "swampertite",
+          "ability": "torrent",
+          "moves": [
+            "earthquake",
+            "icepunch",
+            "protect",
+            "wavecrash"
+          ],
+          "nature": "adamant",
+          "evs": {
+            "hp": 24,
+            "atk": 32,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 10
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Swampert",
+          "species_name": "Swampert"
+        },
+        {
+          "species": "pelipper",
+          "item": "focussash",
+          "ability": "drizzle",
+          "moves": [
+            "hurricane",
+            "protect",
+            "tailwind",
+            "weatherball"
+          ],
+          "nature": "modest",
+          "evs": {
+            "hp": 2,
+            "atk": 0,
+            "def": 0,
+            "spa": 32,
+            "spd": 0,
+            "spe": 32
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Pelipper",
+          "species_name": "Pelipper"
+        },
+        {
+          "species": "gardevoir",
+          "item": "gardevoirite",
+          "ability": "telepathy",
+          "moves": [
+            "hypervoice",
+            "protect",
+            "psyshock",
+            "trickroom"
+          ],
+          "nature": "modest",
+          "evs": {
+            "hp": 32,
+            "atk": 0,
+            "def": 6,
+            "spa": 28,
+            "spd": 0,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Gardevoir",
+          "species_name": "Gardevoir"
+        },
+        {
+          "species": "kingambit",
+          "item": "chopleberry",
+          "ability": "defiant",
+          "moves": [
+            "ironhead",
+            "kowtowcleave",
+            "lowkick",
+            "suckerpunch"
+          ],
+          "nature": "adamant",
+          "evs": {
+            "hp": 32,
+            "atk": 32,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Kingambit",
+          "species_name": "Kingambit"
+        },
+        {
+          "species": "sinistcha",
+          "item": "kasibberry",
+          "ability": "hospitality",
+          "moves": [
+            "matchagotcha",
+            "protect",
+            "ragepowder",
+            "trickroom"
+          ],
+          "nature": "calm",
+          "evs": {
+            "hp": 32,
+            "atk": 0,
+            "def": 14,
+            "spa": 0,
+            "spd": 20,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Sinistcha",
+          "species_name": "Sinistcha"
+        },
+        {
+          "species": "incineroar",
+          "item": "sitrusberry",
+          "ability": "intimidate",
+          "moves": [
+            "fakeout",
+            "flareblitz",
+            "partingshot",
+            "throatchop"
+          ],
+          "nature": "careful",
+          "evs": {
+            "hp": 32,
+            "atk": 0,
+            "def": 14,
+            "spa": 0,
+            "spd": 20,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Incineroar",
+          "species_name": "Incineroar"
+        }
+      ],
+      "fingerprint": "6c4bee6977bba530a94728619f67d0e550951b0f5829ef168dab7a728e2806f3",
+      "validation_status": "prevalidated",
+      "validation_errors": [],
+      "duplicate_sources": []
+    },
+    {
+      "id": "vgc-bench-samples-360b85190285",
+      "name": "MB4",
+      "format_id": "champions-reg-mb",
+      "pool": "champions-reg-mb",
+      "source_id": "vgc-bench-samples",
+      "source_label": "VGC-Bench Reg M-B 样例阵容",
+      "source_repository": "cameronangliss/vgc-bench",
+      "source_commit": "d79f9532947ac114dce1dda2456a590afcd375b2",
+      "source_path": "teams/reg_mb/MB4.txt",
+      "author": null,
+      "license": "MIT",
+      "tags": [
+        "速度控制"
+      ],
+      "archetype": "顺风进攻",
+      "paste": "Staraptor @ Staraptite\nAbility: Intimidate\nLevel: 50\nEVs: 2 HP / 32 Atk / 32 Spe\nJolly Nature\n- Brave Bird\n- Close Combat\n- Roost\n- Protect\n\nWhimsicott @ Fairy Feather\nAbility: Prankster\nLevel: 50\nEVs: 2 HP / 32 SpA / 32 Spe\nTimid Nature\n- Moonblast\n- Tailwind\n- Tickle\n- Protect\n\nGlimmora @ Focus Sash\nAbility: Toxic Debris\nLevel: 50\nEVs: 1 HP / 32 SpA / 1 SpD / 32 Spe\nTimid Nature\n- Sludge Bomb\n- Power Gem\n- Earth Power\n- Spiky Shield\n\nKingambit @ Chople Berry\nAbility: Defiant\nLevel: 50\nEVs: 32 HP / 25 Atk / 9 SpD\nAdamant Nature\n- Sucker Punch\n- Kowtow Cleave\n- Iron Head\n- Protect\n\nBasculegion @ Life Orb\nAbility: Adaptability\nLevel: 50\nEVs: 4 HP / 28 Atk / 1 Def / 1 SpD / 32 Spe\nAdamant Nature\n- Wave Crash\n- Last Respects\n- Aqua Jet\n- Protect\n\nGarchomp @ Sitrus Berry\nAbility: Rough Skin\nLevel: 50\nEVs: 12 HP / 20 Atk / 1 Def / 1 SpD / 32 Spe\nAdamant Nature\n- Dragon Claw\n- Earthquake\n- Rock Tomb\n- Protect",
+      "packed": "Staraptor||staraptite|intimidate|bravebird,closecombat,roost,protect|Jolly|2,32,,,,32||||50|]Whimsicott||fairyfeather|prankster|moonblast,tailwind,tickle,protect|Timid|2,,,32,,32||||50|]Glimmora||focussash|toxicdebris|sludgebomb,powergem,earthpower,spikyshield|Timid|1,,,32,1,32||||50|]Kingambit||chopleberry|defiant|suckerpunch,kowtowcleave,ironhead,protect|Adamant|32,25,,,9,||||50|]Basculegion||lifeorb|adaptability|wavecrash,lastrespects,aquajet,protect|Adamant|4,28,1,,1,32|M|||50|]Garchomp||sitrusberry|roughskin|dragonclaw,earthquake,rocktomb,protect|Adamant|12,20,1,,1,32||||50|",
+      "roster": [
+        {
+          "species": "staraptor",
+          "item": "staraptite",
+          "ability": "intimidate",
+          "moves": [
+            "bravebird",
+            "closecombat",
+            "protect",
+            "roost"
+          ],
+          "nature": "jolly",
+          "evs": {
+            "hp": 2,
+            "atk": 32,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 32
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Staraptor",
+          "species_name": "Staraptor"
+        },
+        {
+          "species": "whimsicott",
+          "item": "fairyfeather",
+          "ability": "prankster",
+          "moves": [
+            "moonblast",
+            "protect",
+            "tailwind",
+            "tickle"
+          ],
+          "nature": "timid",
+          "evs": {
+            "hp": 2,
+            "atk": 0,
+            "def": 0,
+            "spa": 32,
+            "spd": 0,
+            "spe": 32
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Whimsicott",
+          "species_name": "Whimsicott"
+        },
+        {
+          "species": "glimmora",
+          "item": "focussash",
+          "ability": "toxicdebris",
+          "moves": [
+            "earthpower",
+            "powergem",
+            "sludgebomb",
+            "spikyshield"
+          ],
+          "nature": "timid",
+          "evs": {
+            "hp": 1,
+            "atk": 0,
+            "def": 0,
+            "spa": 32,
+            "spd": 1,
+            "spe": 32
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Glimmora",
+          "species_name": "Glimmora"
+        },
+        {
+          "species": "kingambit",
+          "item": "chopleberry",
+          "ability": "defiant",
+          "moves": [
+            "ironhead",
+            "kowtowcleave",
+            "protect",
+            "suckerpunch"
+          ],
+          "nature": "adamant",
+          "evs": {
+            "hp": 32,
+            "atk": 25,
+            "def": 0,
+            "spa": 0,
+            "spd": 9,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Kingambit",
+          "species_name": "Kingambit"
+        },
+        {
+          "species": "basculegion",
+          "item": "lifeorb",
+          "ability": "adaptability",
+          "moves": [
+            "aquajet",
+            "lastrespects",
+            "protect",
+            "wavecrash"
+          ],
+          "nature": "adamant",
+          "evs": {
+            "hp": 4,
+            "atk": 28,
+            "def": 1,
+            "spa": 0,
+            "spd": 1,
+            "spe": 32
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "M",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Basculegion",
+          "species_name": "Basculegion"
+        },
+        {
+          "species": "garchomp",
+          "item": "sitrusberry",
+          "ability": "roughskin",
+          "moves": [
+            "dragonclaw",
+            "earthquake",
+            "protect",
+            "rocktomb"
+          ],
+          "nature": "adamant",
+          "evs": {
+            "hp": 12,
+            "atk": 20,
+            "def": 1,
+            "spa": 0,
+            "spd": 1,
+            "spe": 32
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "gender": "",
+          "level": 50,
+          "happiness": 255,
+          "shiny": false,
+          "tera_type": "",
+          "name": "Garchomp",
+          "species_name": "Garchomp"
+        }
+      ],
+      "fingerprint": "360b8519028560a43879ac3271b74dc542048aa6e799a255e128a52a54a46eba",
+      "validation_status": "prevalidated",
+      "validation_errors": [],
+      "duplicate_sources": []
+    }
+  ]
+}

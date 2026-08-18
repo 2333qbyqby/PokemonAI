@@ -11,13 +11,24 @@ import yaml
 
 def build_command(args: argparse.Namespace) -> list[str]:
     raw = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
-    if raw.get("format") != "gen9randombattle":
-        raise ValueError("First release only supports gen9randombattle")
+    formats = {
+        str(entry.get("id")): str(entry.get("showdown_format"))
+        for entry in raw.get("formats", [])
+        if isinstance(entry, dict)
+    }
+    if not formats and raw.get("format"):
+        formats["default"] = str(raw["format"])
     experts = [entry for entry in raw.get("opponents", []) if entry.get("backend") == "foul_play"]
     if len(experts) != 1:
         raise ValueError("Configuration must contain exactly one foul_play opponent")
     expert = experts[0]
     options = expert.get("options") or {}
+    format_id = str(expert.get("format_id", "default"))
+    battle_format = formats.get(format_id)
+    if not battle_format:
+        raise ValueError(f"Foul Play opponent references unknown format: {format_id}")
+    if "vgc" in battle_format.lower() or "double" in battle_format.lower():
+        raise ValueError("Foul Play is singles-only; use pokemonai.vgc for doubles")
     required_options = ("search_time_ms", "search_parallelism", "search_threads")
     missing = [name for name in required_options if name not in options]
     if missing:
@@ -33,7 +44,7 @@ def build_command(args: argparse.Namespace) -> list[str]:
         "--bot-mode",
         "accept_challenge",
         "--pokemon-format",
-        str(raw["format"]),
+        battle_format,
         "--search-time-ms",
         str(options["search_time_ms"]),
         "--search-parallelism",

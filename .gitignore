@@ -3,8 +3,12 @@ apps/showdown-client/play.pokemonshowdown.com/pokemonai-source.tar.gz
 .cache/
 .venv/
 .env
-data/
-artifacts/
+# Runtime state
+/data/agents/
+/data/battles/
+/data/test-results/
+/data/team-sources/cache/
+/artifacts/
 *.pid
 *.log
 __pycache__/

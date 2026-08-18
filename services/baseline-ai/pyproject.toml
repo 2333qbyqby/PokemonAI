@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pokemonai-baseline"
-version = "0.1.0"
-description = "PokemonAI baseline opponents powered by poke-env"
+version = "0.2.0"
+description = "PokemonAI multi-format opponents with Champions VGC policy and team library"
 requires-python = ">=3.12,<3.13"
 license = { text = "AGPL-3.0-only" }
 dependencies = [
-  "poke-env==0.15.0",
+  "poke-env @ https://github.com/cameronangliss/poke-env/archive/379a04628e42b2a2c94790c0788204b652f7ae1b.tar.gz",
   "PyYAML==6.0.2"
 ]
 
@@ -21,6 +21,7 @@ test = [
 
 [project.scripts]
 pokemonai-baseline = "baseline_ai.runner:cli"
+pokemonai-teams = "baseline_ai.team_cli:cli"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/baseline_ai"]

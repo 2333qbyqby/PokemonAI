@@ -1,0 +1,56 @@
+schema_version: 1
+cache_dir: data/team-sources/cache
+library_dir: data/team-library
+sources:
+  - id: local-champions
+    label: 我的 Champions 阵容
+    type: directory
+    path: data/team-sources/builtin
+    include: ["**/*"]
+    adapter: showdown-directory
+    enabled: true
+    license: USER-PROVIDED
+    format_id: champions-reg-mb
+    pool: champions-reg-mb
+
+  - id: vgc-bench-samples
+    label: VGC-Bench Reg M-B 样例阵容
+    type: directory
+    path: data/team-sources/vendored/vgc-bench
+    repository: cameronangliss/vgc-bench
+    ref: d79f9532947ac114dce1dda2456a590afcd375b2
+    include:
+      - teams/reg_mb/*.txt
+    adapter: vgc-bench
+    enabled: true
+    license: MIT
+
+  - id: vgc-bench
+    label: VGC-Bench 开源阵容
+    type: github
+    repository: cameronangliss/vgc-bench
+    ref: d79f9532947ac114dce1dda2456a590afcd375b2
+    include:
+      - teams/**/*
+    adapter: vgc-bench
+    enabled: false
+    license: MIT
+    max_files: 2000
+    max_total_bytes: 25000000
+
+  - id: pokemon-vgc-ai
+    label: pokemon-vgc-ai 阵容
+    type: github
+    repository: Nolelle/pokemon-vgc-ai
+    ref: f17d1b585c8ffa5fedcbbd2a7d5c62e6414eae84
+    include:
+      - teams/*.paste.txt
+      - teams/*.packed.txt
+    adapter: pokemon-vgc-ai
+    enabled: false
+    license: UNKNOWN
+    format_id: champions-reg-mb
+    pool: champions-reg-mb
+    allow_unknown_license: false
+    max_files: 200
+    max_total_bytes: 5000000

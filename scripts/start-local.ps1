@@ -36,6 +36,7 @@ try {
     $baselineArguments = @(
         '-m', 'baseline_ai.runner',
         '--config', (Join-Path $ProjectRoot 'config\agents.yaml'),
+        '--project-root', $ProjectRoot,
         '--data-dir', (Join-Path $ProjectRoot 'data\agents\baseline')
     )
     $expertArguments = @()

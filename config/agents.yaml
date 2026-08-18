@@ -1,25 +1,118 @@
-format: gen9randombattle
+default_format: champions-reg-mb
 source_url: /pokemonai-source.tar.gz
+team_sources_path: config/team-sources.yaml
+team_library_path: data/team-library/index.json
+
+formats:
+  - id: champions-reg-mb
+    label: Pokémon Champions VGC 2026 Reg M-B
+    showdown_format: gen9championsvgc2026regmb
+    game_type: doubles
+    team_preview: bring6_pick4
+    open_team_sheets: true
+    team_pool: champions-reg-mb
+    description: 六选四双打、开放队伍表，面向 Pokémon Champions 的 VGC 对练。
+  - id: gen9-random
+    label: Gen 9 Random Battle
+    showdown_format: gen9randombattle
+    game_type: singles
+    team_preview: none
+    open_team_sheets: false
+    description: 保留原项目的随机单打模式。
+
 opponents:
-  - id: easy
-    label: 简单
+  - id: vgc-1
+    label: VGC Lv.1
+    username: PokemonAI VGC 1
+    backend: pokemonai.vgc
+    format_id: champions-reg-mb
+    difficulty: 1
+    style: relaxed
+    description: 只做基本属性、伤害与合法目标判断，在合理行动中高温抽样。
+  - id: vgc-2
+    label: VGC Lv.2
+    username: PokemonAI VGC 2
+    backend: pokemonai.vgc
+    format_id: champions-reg-mb
+    difficulty: 2
+    style: relaxed
+    description: 会使用 Protect、基础速度控制和简单协同。
+  - id: vgc-3
+    label: VGC Lv.3
+    username: PokemonAI VGC 3
+    backend: pokemonai.vgc
+    format_id: champions-reg-mb
+    difficulty: 3
+    style: balanced
+    description: 具备基础双打联合行动评价。
+  - id: vgc-4
+    label: VGC Lv.4
+    username: PokemonAI VGC 4
+    backend: pokemonai.vgc
+    format_id: champions-reg-mb
+    difficulty: 4
+    style: balanced
+    description: 更重视击杀、换位、顺风和戏法空间。
+  - id: vgc-5
+    label: VGC Lv.5
+    username: PokemonAI VGC 5
+    backend: pokemonai.vgc
+    format_id: champions-reg-mb
+    difficulty: 5
+    style: balanced
+    description: 能识别常见 Fake Out、重定向与队友强化组合。
+  - id: vgc-6
+    label: VGC Lv.6
+    username: PokemonAI VGC 6
+    backend: pokemonai.vgc
+    format_id: champions-reg-mb
+    difficulty: 6
+    style: aggressive
+    description: 使用更严格的候选剪枝和风险评价。
+  - id: vgc-7
+    label: VGC Lv.7
+    username: PokemonAI VGC 7
+    backend: pokemonai.vgc
+    format_id: champions-reg-mb
+    difficulty: 7
+    style: balanced
+    description: 低温选择，重视速度顺序和资源保存。
+  - id: vgc-8
+    label: VGC Lv.8
+    username: PokemonAI VGC 8
+    backend: pokemonai.vgc
+    format_id: champions-reg-mb
+    difficulty: 8
+    style: expert
+    description: 当前 CPU 版最高强度，使用完整联合动作排序。
+
+  - id: random-easy
+    label: 随机单打·简单
     username: PokemonAI Easy
     backend: poke_env.random
+    format_id: gen9-random
+    difficulty: 1
     description: 随机选择合法行动，适合熟悉操作。
-  - id: normal
-    label: 普通
+  - id: random-normal
+    label: 随机单打·普通
     username: PokemonAI Normal
     backend: poke_env.max_base_power
+    format_id: gen9-random
+    difficulty: 3
     description: 偏好高威力进攻招式。
-  - id: hard
-    label: 困难
+  - id: random-hard
+    label: 随机单打·困难
     username: PokemonAI Hard
     backend: poke_env.simple_heuristics
+    format_id: gen9-random
+    difficulty: 5
     description: 考虑属性、换人、场地、强化和太晶。
-  - id: expert
-    label: 专家
+  - id: random-expert
+    label: 随机单打·专家
     username: PokemonAI Expert
     backend: foul_play
+    format_id: gen9-random
+    difficulty: 8
     description: 使用 Foul Play 的 MCTS 搜索。
     options:
       search_time_ms: 500

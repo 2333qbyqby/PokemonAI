@@ -19,8 +19,9 @@
   "upstreams": {
     "pokemonShowdown": "8ff48edc09e4aed6011c966258a5f95899128443",
     "pokemonShowdownClient": "daa28cfeb19775dea9f19f90a8c8f1418bac316a",
-    "pokeEnv": "0.15.0",
+    "pokeEnv": "379a04628e42b2a2c94790c0788204b652f7ae1b",
     "foulPlay": "c90ecd3189dac1699a8603571990b635c0a7bf6e",
-    "pokeEngine": "0.0.48"
+    "pokeEngine": "0.0.48",
+    "pokeEnvRepository": "https://github.com/cameronangliss/poke-env"
   }
 }

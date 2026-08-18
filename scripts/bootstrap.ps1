@@ -22,9 +22,13 @@ function Assert-Sha256([string]$Path, [string]$Expected) {
 $lock = Get-Content -LiteralPath (Join-Path $ProjectRoot 'config\runtime-lock.json') -Raw | ConvertFrom-Json
 New-Item -ItemType Directory -Force -Path $RuntimeRoot, (Join-Path $RuntimeRoot 'downloads'), (Join-Path $RuntimeRoot 'cache') | Out-Null
 
-Write-Host '[1/7] Initializing pinned submodules'
-git -C $ProjectRoot submodule update --init --recursive
-if ($LASTEXITCODE -ne 0) { throw 'git submodule update failed' }
+Write-Host '[1/7] Initializing pinned submodules when a Git checkout is available'
+if (Test-Path -LiteralPath (Join-Path $ProjectRoot '.git')) {
+    git -C $ProjectRoot submodule update --init --recursive
+    if ($LASTEXITCODE -ne 0) { throw 'git submodule update failed' }
+} else {
+    Write-Host 'Source archive detected; missing upstream files will be repaired from runtime-lock.json.'
+}
 
 Write-Host '[2/7] Installing project-local Node.js'
 $nodeZip = Join-Path $RuntimeRoot "downloads\node-v$($lock.node.version)-win-x64.zip"
@@ -111,7 +115,11 @@ if (-not $SkipExpert) {
     if ($LASTEXITCODE -ne 0) { throw 'Could not install Foul Play dependencies' }
 }
 
-Write-Host '[5/7] Generating client configuration'
+Write-Host '[5/7] Repairing pinned upstream data and generating client configuration'
+& $BaselinePython (Join-Path $ProjectRoot 'scripts\ensure-upstreams.py') --project-root $ProjectRoot
+if ($LASTEXITCODE -ne 0) { throw 'Pinned upstream repair failed' }
+
+Write-Host 'Generating client configuration'
 & $BaselinePython (Join-Path $ProjectRoot 'scripts\generate-client-config.py') `
     --config (Join-Path $ProjectRoot 'config\agents.yaml') `
     --output (Join-Path $ProjectRoot 'apps\showdown-client\play.pokemonshowdown.com\src\pokemonai-config.ts')
@@ -122,6 +130,10 @@ Copy-Item -LiteralPath (Join-Path $ProjectRoot 'config\showdown-config.js') `
     -Destination (Join-Path $ProjectRoot 'vendor\pokemon-showdown\config\config.js') -Force
 Invoke-LocalNpm -WorkingDirectory (Join-Path $ProjectRoot 'vendor\pokemon-showdown') ci --ignore-scripts
 Invoke-LocalNodeScript -WorkingDirectory (Join-Path $ProjectRoot 'vendor\pokemon-showdown') -Script 'build'
+
+Write-Host 'Validating and rebuilding the team library against the built Showdown'
+& $BaselinePython (Join-Path $ProjectRoot 'scripts\team-library.py') build --project-root $ProjectRoot
+if ($LASTEXITCODE -ne 0) { throw 'Team library build failed' }
 
 Write-Host '[7/7] Installing and building Showdown client'
 Invoke-LocalNpm -WorkingDirectory (Join-Path $ProjectRoot 'apps\showdown-client') ci
