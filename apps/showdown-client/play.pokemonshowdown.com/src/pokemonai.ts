@@ -4,7 +4,7 @@ import {
 	PokemonAIConfig, type PokemonAIFormat, type PokemonAIOpponent,
 } from './pokemonai-config';
 
-const PENDING_KEY = 'pokemonai-pending-challenge-v2';
+const PENDING_KEY = 'pokemonai-pending-challenge';
 const LEGACY_PENDING_KEY = 'pokemonai-pending-opponent';
 const LAST_TEAM_PREFIX = 'pokemonai-last-team-';
 const LAST_TEAM_NAME_PREFIX = 'pokemonai-last-team-name-';
@@ -63,7 +63,15 @@ function loadPendingPokemonAIChallenge(): PendingPokemonAIChallenge | null {
 		} catch {}
 	}
 	const legacy = localStorage.getItem(LEGACY_PENDING_KEY);
-	return legacy ? { opponentId: legacy, packedTeam: '' } : null;
+	if (!legacy) return null;
+	// Migrate the legacy pending opponent to the stable key; keep the legacy
+	// entry when the migration itself fails so no pending challenge is lost.
+	const migrated: PendingPokemonAIChallenge = { opponentId: legacy, packedTeam: '' };
+	try {
+		localStorage.setItem(PENDING_KEY, JSON.stringify(migrated));
+		localStorage.removeItem(LEGACY_PENDING_KEY);
+	} catch {}
+	return migrated;
 }
 
 export function findPokemonAIOpponent(idOrUsername: string): PokemonAIOpponent | undefined {

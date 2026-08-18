@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pokemonai-shell-v2';
+const CACHE_NAME = 'pokemonai-shell';
 const SHELL = [
 	'/testclient-new.html',
 	'/manifest.webmanifest',
