@@ -1,0 +1,16 @@
+# Normalize line endings: store LF in the index, check out platform-native
+# endings (CRLF on Windows via core.autocrlf, LF elsewhere).
+* text=auto
+
+# Batch files keep CRLF on checkout for cmd.exe compatibility.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Never touch these.
+*.png binary
+*.psd binary
+*.zip binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.map binary
