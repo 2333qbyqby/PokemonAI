@@ -23,7 +23,11 @@ import type { Args } from "./battle-text-parser";
 import { ModifiableValue } from "./battle-tooltips";
 import { Net } from "./client-connection";
 import { BattleLog } from "./battle-log";
-import { challengePokemonAI, findPokemonAIOpponent } from "./pokemonai";
+import {
+	challengePokemonAI, findPokemonAIOpponent, showPokemonAIOrientationTip, switchPokemonAIMode,
+} from "./pokemonai";
+import { PokemonAIApp } from "./pokemonai-app";
+import { pokemonAIAnyTerm, pokemonAITypeName } from "./pokemonai-i18n";
 
 type BattleDesc = {
 	id: RoomID,
@@ -454,6 +458,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			battle.setHardcoreMode(true);
 		}
 		battle.subscribe(() => this.forceUpdate());
+		showPokemonAIOrientationTip();
 	}
 	override componentWillUnmount() {
 		const scene = this.props.room.battle?.scene as BattleScene | undefined;
@@ -646,8 +651,8 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			class={`movebutton has-tooltip ${props.moveData.disabled ? 'disabled' : `type-${props.type}`}`}
 			aria-disabled={props.moveData.disabled}
 		>
-			{props.name}<br />
-			<small class="type">{props.type} <span class="effectiveness-icon">{props.tags}</span></small> {}
+			{pokemonAIAnyTerm(props.name)}<br />
+			<small class="type">{pokemonAITypeName(props.type)} <span class="effectiveness-icon">{props.tags}</span></small> {}
 			<small class="pp">{pp}</small>&nbsp;
 		</button>;
 	}
@@ -661,7 +666,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 				aria-disabled={props.disabled}
 				style={props.disabled === 'fade' ? 'opacity: 0.5' : ''} data-tooltip={props.tooltip}
 			>
-				(empty slot)
+				（空位）
 			</button>;
 		}
 
@@ -678,7 +683,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			style={props.disabled === 'fade' ? 'opacity: 0.5' : ''} data-tooltip={props.tooltip}
 		>
 			{PSIcon({ pokemon })}
-			{pokemon.name}
+			{pokemonAIAnyTerm(pokemon.name)}
 			{
 				!props.noHPBar && !pokemon.fainted &&
 				<span class={hpColorClass}>
@@ -739,7 +744,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 				</label>}
 				{canTerastallize && <label class={`megaevo${choices.current.tera ? ' cur' : ''}`}>
 					<input type="checkbox" name="tera" checked={choices.current.tera} onChange={this.toggleBoostedMove} /> {}
-					Tera {PSIcon({ type: canTerastallize, new: true, tera: true })}
+					太晶化 {PSIcon({ type: canTerastallize, new: true, tera: true })}
 				</label>}
 			</div>
 			{overlayVersion && this.renderMoveControls(moveRequest, choices)}
@@ -1041,13 +1046,13 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			const canSkip = !room.battle.hardcoreMode;
 			return <>
 				{canSkip && <div class="overlay-controls-skip">
-					<button class="button" data-cmd="/ffto end"><i class="fa fa-fast-forward" aria-hidden></i><br />Skip</button>
+					<button class="button" data-cmd="/ffto end"><i class="fa fa-fast-forward" aria-hidden></i><br />跳过</button>
 				</div>}
 			</>;
 		}
 		return <div class="inline-controls">
 			{!room.battle.hardcoreMode && <div class="whatdo" style="padding-bottom:0">
-				<button class="button" data-cmd="/ffto end"><i class="fa fa-fast-forward" aria-hidden></i><br />Skip animation</button>
+				<button class="button" data-cmd="/ffto end"><i class="fa fa-fast-forward" aria-hidden></i><br />跳过动画</button>
 			</div>}
 			{this.renderTeamList()}
 		</div>;
@@ -1062,13 +1067,13 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			if (overlayVersion) {
 				return <>
 					<div class="overlay-controls-list">
-						<button class="button move-button cur"><strong>Battle</strong></button> {}
-						<button class="button switch-button disabled"><strong>Switch</strong></button>
+						<button class="button move-button cur"><strong>招式</strong></button> {}
+						<button class="button switch-button disabled"><strong>换人</strong></button>
 					</div>
 					<div class="targetcontrols">
 						<p class="overlay-message">
 							{this.renderOldChoices(request, choices, true)}
-							{pokemon.name} should use <strong>{moveName}</strong> at where?
+							<strong>{pokemonAIAnyTerm(pokemon.name)}</strong>要对谁使用<strong>{pokemonAIAnyTerm(moveName || '')}</strong>？
 						</p>
 						<div class="switchmenu">
 							{this.renderMoveTargetControls(request, choices)}
@@ -1079,7 +1084,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			return <div class="inline-controls">
 				<div class="whatdo">
 					{this.renderOldChoices(request, choices)}
-					{pokemon.name} should use <strong>{moveName}</strong> at where? {}
+					<strong>{pokemonAIAnyTerm(pokemon.name)}</strong>要对谁使用<strong>{pokemonAIAnyTerm(moveName || '')}</strong>？ {}
 				</div>
 				<div class="switchcontrols">
 					<div class="switchmenu">
@@ -1094,12 +1099,12 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 		if (overlayVersion) {
 			return <>
 				<div class="overlay-controls-list">
-					<button class={this.overlayControlClass('move')} data-cmd="/movemenu"><strong>Battle</strong></button> {}
-					<button class={this.overlayControlClass('switch')} data-cmd="/switchmenu"><strong>Switch</strong></button>
+					<button class={this.overlayControlClass('move')} data-cmd="/movemenu"><strong>招式</strong></button> {}
+					<button class={this.overlayControlClass('switch')} data-cmd="/switchmenu"><strong>换人</strong></button>
 				</div>
 				{!room.overlayActive && <div class="whatdo">
 					{this.renderOldChoices(request, choices, true)}
-					What will <strong>{pokemon.name}</strong> do?
+					<strong>{pokemonAIAnyTerm(pokemon.name)}</strong>要做什么？
 				</div>}
 				{room.overlayActive === 'move' && <div class="movecontrols">
 					{this.renderMoveMenu(choices, true)}
@@ -1115,10 +1120,10 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 		return <div class="inline-controls">
 			<div class="whatdo">
 				{this.renderOldChoices(request, choices)}
-				What will <strong>{pokemon.name}</strong> do?
+				<strong>{pokemonAIAnyTerm(pokemon.name)}</strong>要做什么？
 			</div>
 			<div class="movecontrols">
-				<h3 class="moveselect">Battle</h3>
+				<h3 class="moveselect">选择招式</h3>
 				{this.renderMoveMenu(choices)}
 			</div>
 			<div class="switchcontrols">
@@ -1126,7 +1131,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 					<h3 class="shiftselect">Shift</h3>,
 					<button data-cmd="/shift">Move to center</button>,
 				]}
-				<h3 class="switchselect">Switch</h3>
+				<h3 class="switchselect">更换宝可梦</h3>
 				{this.renderSwitchMenu(request, choices)}
 			</div>
 		</div>;
@@ -1134,12 +1139,12 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 	renderPlayerSwitchControls(request: BattleSwitchRequest, choices: BattleChoiceBuilder, overlayVersion = false) {
 		const pokemon = request.side.pokemon[choices.index()];
 		const prompt = choices.isReviving() ?
-			<>Who will <strong>{pokemon.name}</strong> revive?</> :
-			<>Who will replace <strong>{pokemon.name}</strong>?</>;
+			<>让<strong>{pokemonAIAnyTerm(pokemon.name)}</strong>复活谁？</> :
+			<>派谁替换<strong>{pokemonAIAnyTerm(pokemon.name)}</strong>？</>;
 		if (overlayVersion) {
 			return <>
 				<div class="overlay-controls-list">
-					<button class="button switch-button cur"><strong>Switch</strong></button>
+					<button class="button switch-button cur"><strong>换人</strong></button>
 				</div>
 				<div class="switchcontrols">
 					<p class="overlay-message">
@@ -1156,7 +1161,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 				{prompt}
 			</div>
 			<div class="switchcontrols">
-				<h3 class="switchselect">Switch</h3>
+				<h3 class="switchselect">更换宝可梦</h3>
 				{this.renderSwitchMenu(request, choices, true)}
 			</div>
 		</div>;
@@ -1230,7 +1235,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			if (overlayVersion) {
 				return <>
 					<div class="overlay-controls-list">
-						<button class={this.overlayControlClass('switch')} data-cmd="/switchmenu"><strong>Team</strong></button>
+						<button class={this.overlayControlClass('switch')} data-cmd="/switchmenu"><strong>队伍</strong></button>
 					</div>
 					{!room.overlayActive && <div class="whatdo">
 						{this.renderOldChoices(request, choices, true)}
@@ -1241,8 +1246,8 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			return <div class="inline-controls">
 				<div class="whatdo">
 					{this.renderOldChoices(request, choices)}
-					<em>Waiting for opponent...</em> {choices.noCancel || room.battle.hardcoreMode ?
-						null : <button data-cmd="/cancel" class="button">Cancel</button>}
+					<em>等待对手行动...</em> {choices.noCancel || room.battle.hardcoreMode ?
+						null : <button data-cmd="/cancel" class="button">取消选择</button>}
 				</div>
 				{this.renderTeamList()}
 			</div>;
@@ -1274,30 +1279,30 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 						href={`//${Config.routes.replays}/download`}
 						class="button replayDownloadButton"
 					>
-						<i class="fa fa-download" aria-hidden></i> Download replay</a>
+						<i class="fa fa-download" aria-hidden></i> 下载录像</a>
 					<br />
 					<br />
 					<button class="button" data-cmd="/savereplay">
-						<i class="fa fa-upload" aria-hidden></i> Upload and share replay
+						<i class="fa fa-upload" aria-hidden></i> 上传并分享录像
 					</button>
 				</span>
 
 				<button class="button" data-cmd="/play" style="min-width:4.5em">
-					<i class="fa fa-undo" aria-hidden></i><br />Replay
+					<i class="fa fa-undo" aria-hidden></i><br />回放
 				</button> {}
 				{isNotTiny && !room.battle.hardcoreMode && <>
 					<button class="button button-first" data-cmd="/ffto 0" style="margin-right:2px">
-						<i class="fa fa-undo" aria-hidden></i><br />First turn
+						<i class="fa fa-undo" aria-hidden></i><br />第一回合
 					</button>
 					<button class="button button-first" data-cmd="/ffto -1">
-						<i class="fa fa-step-backward" aria-hidden></i><br />Prev turn
+						<i class="fa fa-step-backward" aria-hidden></i><br />上一回合
 					</button>
 				</>}
 			</p>
 			{room.side ? (
 				<p>
 					<button class="button" data-cmd="/close">
-						<strong>Main menu</strong><br /><small>(closes this battle)</small>
+						<strong>返回首页</strong><br /><small>关闭本场对战</small>
 					</button> {}
 					{aiOpponent ? <>
 						<button
@@ -1313,7 +1318,7 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 							<strong>更换难度</strong><br /><small>选择其他 AI</small>
 						</button>
 					</> : <button class="button" data-cmd={`/closeand /challenge ${room.battle.farSide.id},${room.battle.tier}`}>
-						<strong>Rematch</strong><br /><small>(closes this battle)</small>
+						<strong>再次挑战</strong><br /><small>关闭本场对战</small>
 					</button>}
 				</p>
 			) : (
@@ -1352,6 +1357,46 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 		></style> : null;
 		const { layout, battleHeight, battleWidth, overlayControls } = this.chooseLayout();
 		const overlayVersion = overlayControls && !!room.battle && !!room.side && !!room.request && !room.battle.ended;
+		const pokemonAILandscape = Math.max(room.width, innerWidth) >= 700 && room.height <= 500 &&
+			matchMedia('(orientation: landscape)').matches;
+
+		if (pokemonAILandscape) {
+			const stageWidth = Math.min(Math.floor(room.width * 0.65), Math.floor(room.height * 640 / 360));
+			const stageHeight = Math.floor(stageWidth * 360 / 640);
+			const stageScale = stageHeight / 360;
+			this.battleHeight = stageHeight;
+			if (room.battle?.scene.$frame) room.battle.scene.$frame.css('transform', `scale(${stageScale})`);
+			return <PSPanelWrapper room={room} focusClick noScroll="hidden">
+				{hardcoreStyle}
+				<div class="pokemonai-landscape-battle">
+					<div class="pokemonai-battle-stage" style={`width:${stageWidth}px;height:${stageHeight}px`}>
+						<BattleDiv room={room} />
+					</div>
+					<aside class="pokemonai-command-deck" style={`left:${stageWidth}px`}>
+						<div class="pokemonai-command-heading">
+							<button
+								class="pokemonai-battle-mode-switch"
+								onClick={ev => switchPokemonAIMode(
+									PokemonAIApp.isAI() ? 'online' : 'ai', ev.currentTarget as HTMLButtonElement
+								)}
+								aria-label={`当前${PokemonAIApp.profile.label}，切换模式`}
+							>{PokemonAIApp.profile.label}</button>
+							<strong>战斗指令</strong><span>{pokemonAIAnyTerm(room.battle?.nearSide.active[0]?.name || '')}</span>
+						</div>
+						<div class="battle-controls wide-controls" role="complementary" aria-label="战斗指令">
+							{(room.battle && !room.battle.ended && room.request &&
+								room.battle.mySide.id === PS.user.userid) && <TimerButton room={room} top={0} />}
+							{this.renderControls()}
+							{this.renderConnectError()}
+						</div>
+					</aside>
+					<details class="pokemonai-battle-log-drawer">
+						<summary><i class="fa fa-list" aria-hidden></i> 对战日志</summary>
+						<ChatLog class="battle-log hasuserlist" room={room} noSubscription hasPreempt />
+					</details>
+				</div>
+			</PSPanelWrapper>;
+		}
 
 		if (layout === 'scrolling') {
 			// low-width-low-height layout
@@ -1450,11 +1495,11 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 				</div>
 				{showingChat ? (
 					<button class="battle-chat-toggle button" name="hideChat" onClick={this.showMobileBattle}>
-						Battle <i class="fa fa-caret-right" aria-hidden></i>
+						对战 <i class="fa fa-caret-right" aria-hidden></i>
 					</button>
 				) : (
 					<button class="battle-chat-toggle button" name="showChat" onClick={this.showMobileChat}>
-						<i class="fa fa-caret-left" aria-hidden></i> Chat
+						<i class="fa fa-caret-left" aria-hidden></i> 日志
 					</button>
 				)}
 			</PSPanelWrapper>;

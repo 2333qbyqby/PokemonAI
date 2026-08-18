@@ -63,7 +63,11 @@ test('local web server serves the PWA without escaping its root', async t => {
 
   const root = await fetch(`http://127.0.0.1:${port}/`, {redirect: 'manual'});
   assert.equal(root.status, 302);
-  assert.equal(root.headers.get('location'), '/testclient-new.html?~~127.0.0.1:19000');
+  assert.equal(root.headers.get('location'), '/testclient-new.html?mode=ai&server=127.0.0.1%3A19000');
+
+  const onlineRoot = await fetch(`http://127.0.0.1:${port}/?mode=online`, {redirect: 'manual'});
+  assert.equal(onlineRoot.status, 302);
+  assert.equal(onlineRoot.headers.get('location'), '/testclient-new.html?mode=online');
 
   const manifest = await fetch(`http://127.0.0.1:${port}/manifest.webmanifest`);
   assert.equal(manifest.status, 200);

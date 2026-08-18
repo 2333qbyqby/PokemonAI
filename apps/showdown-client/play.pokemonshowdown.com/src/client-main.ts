@@ -19,6 +19,7 @@ import { BattleTextParser, type Args } from './battle-text-parser';
 import type { BattleRoom } from './panel-battle';
 import { Teams } from './battle-teams';
 import type preact from '../js/lib/preact';
+import type { PokemonAIApp } from './pokemonai-app';
 
 declare const BattleTextAFD: any;
 declare const BattleTextNotAFD: any;
@@ -61,6 +62,7 @@ export interface PSConfig {
 	customcolors: Record<string, string>;
 	whitelist?: string[];
 	testclient?: boolean;
+	pokemonaiApp?: typeof PokemonAIApp;
 }
 export declare const Config: PSConfig;
 
@@ -743,6 +745,12 @@ class PSUser extends PSStreamModel<PSLoginState | null> {
 		});
 	}
 	changeNameWithPassword(name: string, password: string, special: PSLoginState = { needsPassword: true }) {
+		if (Config.pokemonaiApp?.isOnline()) {
+			this.loggingIn = null;
+			PS.alert('为了保护官方账号，PokémonAI 不接收 Showdown 密码。请使用设备 SID 授权。');
+			this.updateLogin({ name, needsPassword: true });
+			return;
+		}
 		this.loggingIn = name;
 		if (!password && !special) {
 			this.updateLogin({
@@ -2090,14 +2098,16 @@ export const PS = new class extends PSModel {
 			title: "Home",
 		}) as MainMenuRoom;
 
-		this.addRoom({
-			id: 'rooms' as RoomID,
-			title: "Rooms",
-			autofocus: false,
-		});
-		this.rightPanel = this.rooms['rooms']!;
+		if (!Config.pokemonaiApp) {
+			this.addRoom({
+				id: 'rooms' as RoomID,
+				title: "Rooms",
+				autofocus: false,
+			});
+			this.rightPanel = this.rooms['rooms']!;
+		}
 
-		if (this.newsHTML) {
+		if (this.newsHTML && !Config.pokemonaiApp) {
 			this.addRoom({
 				id: 'news' as RoomID,
 				title: "News",

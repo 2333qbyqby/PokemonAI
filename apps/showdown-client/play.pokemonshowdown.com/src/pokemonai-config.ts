@@ -1,4 +1,5 @@
 /** Generated from config/agents.yaml. Do not edit by hand. */
+/* eslint-disable @stylistic/max-len */
 export interface PokemonAIFormat {
 	id: string; label: string; showdownFormat: string; gameType: 'singles' | 'doubles';
 	teamPreview: string; openTeamSheets: boolean; description: string; requiresTeam: boolean;

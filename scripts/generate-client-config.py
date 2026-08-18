@@ -32,6 +32,7 @@ def main() -> None:
     opponents = raw["opponents"]
     lines = [
         "/** Generated from config/agents.yaml. Do not edit by hand. */",
+        "/* eslint-disable @stylistic/max-len */",
         "export interface PokemonAIFormat {",
         "\tid: string; label: string; showdownFormat: string; gameType: 'singles' | 'doubles';",
         "\tteamPreview: string; openTeamSheets: boolean; description: string; requiresTeam: boolean;",

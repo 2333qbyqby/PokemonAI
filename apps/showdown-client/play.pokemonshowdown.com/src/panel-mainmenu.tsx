@@ -6,7 +6,7 @@
  */
 
 import preact from "../js/lib/preact";
-import { PSLoginServer } from "./client-connection";
+import { Net, PSLoginServer } from "./client-connection";
 import { PSBackground } from "./client-core";
 import { Config, PS, PSRoom, type PSRoomFocusOptions, type RoomID, type RoomOptions, type Team } from "./client-main";
 import { PSIcon, PSPanelErrorBoundary, PSPanelWrapper, PSRoomPanel, PSView, ReconnectTimer } from "./panels";
@@ -19,9 +19,12 @@ import { Dex, toID, type ID } from "./battle-dex";
 import type { Args } from "./battle-text-parser";
 import { BattleLog } from "./battle-log"; // optional
 import {
-	challengePokemonAI, getRememberedPokemonAITeam, rememberPokemonAITeam, resumePendingPokemonAIChallenge,
+	challengeOfficialPlayer, challengePokemonAI, getRememberedPokemonAITeam,
+	rememberPokemonAITeam, resumePendingOnlineAction, resumePendingPokemonAIChallenge,
+	startOfficialRandomBattle, switchPokemonAIMode,
 } from "./pokemonai";
 import { PokemonAIConfig } from "./pokemonai-config";
+import { PokemonAIApp } from "./pokemonai-app";
 
 export type RoomInfo = {
 	title: string, id?: RoomID, desc?: string, userCount?: number, section?: string, privacy?: 'hidden',
@@ -130,24 +133,35 @@ export class MainMenuRoom extends PSRoom {
 		case 'challstr': {
 			const [, challstr] = args;
 			PS.user.challstr = challstr;
-			if (Config.testclient) {
+			if (PokemonAIApp.isAI()) {
 				// This deployment intentionally has no account/login-server session.
 				// Do not let an optional upstream upkeep request block guest naming.
 				PS.user.initializing = false;
 				PS.user.update(null);
+				PS.send('/language simplifiedchinese');
 				return;
 			}
+			PokemonAIApp.setOfficialAuthState(PokemonAIApp.hasOfficialSid() ? 'checking' : 'idle');
 			PSLoginServer.query(
 				'upkeep', { challstr }
 			).then(res => {
-				if (!res?.username) {
+				if (!res) {
+					if (PokemonAIApp.hasOfficialSid()) PokemonAIApp.setOfficialAuthState('network-error');
 					PS.user.initializing = false;
+					PS.user.update(null);
+					return;
+				}
+				if (!res?.username) {
+					if (PokemonAIApp.hasOfficialSid()) PokemonAIApp.setOfficialAuthState('invalid');
+					PS.user.initializing = false;
+					PS.user.update(null);
 					return;
 				}
 				// | , ; are not valid characters in names
 				res.username = res.username.replace(/[|,;]+/g, '');
 				if (res.loggedin) {
 					PS.user.registered = { name: res.username, userid: toID(res.username) };
+					PokemonAIApp.setOfficialAuthState('authenticated');
 				}
 				PS.user.handleAssertion(res.username, res.assertion);
 			});
@@ -158,17 +172,19 @@ export class MainMenuRoom extends PSRoom {
 			// PokemonAI deliberately uses guest identities only. The upstream client
 			// waits for an optional login-server upkeep request before showing the
 			// nickname action; the self-hosted test client should be usable without it.
-			if (named || Config.testclient) PS.user.initializing = false;
+			if (named || PokemonAIApp.isAI()) PS.user.initializing = false;
 			if (settingsJSON) {
 				PS.prefs.set('serversettings', { ...PS.prefs.serversettings, ...JSON.parse(settingsJSON) });
 			}
 			PS.user.setName(fullName, named, avatar);
 			if (named) {
-				if (Config.pokemonai) {
+				if (PokemonAIApp.isAI()) {
 					PS.user.loggingIn = null;
 					if (PS.rooms.login) PS.leave('login' as RoomID);
 				}
+				PS.send('/language simplifiedchinese');
 				setTimeout(resumePendingPokemonAIChallenge, 0);
+				setTimeout(resumePendingOnlineAction, 0);
 			}
 			PS.teams.loadRemoteTeams();
 			return;
@@ -580,7 +596,13 @@ class MainMenuPanel extends PSRoomPanel<MainMenuRoom> {
 	override componentDidMount() {
 		super.componentDidMount();
 		this.subscribeTo(PSBackground);
+		window.addEventListener('pokemonai-auth-change', this.handleAppUpdate);
 	}
+	override componentWillUnmount() {
+		window.removeEventListener('pokemonai-auth-change', this.handleAppUpdate);
+		super.componentWillUnmount();
+	}
+	handleAppUpdate = () => this.forceUpdate();
 	override focus(options?: PSRoomFocusOptions) {
 		if (!options?.preventScroll) PSView.scrollToRoom();
 		if (PSView.hasTapped) return;
@@ -750,7 +772,147 @@ class MainMenuPanel extends PSRoomPanel<MainMenuRoom> {
 			</small>
 		);
 	}
+	switchMode = (ev: Event) => {
+		const button = ev.currentTarget as HTMLButtonElement;
+		if (button.value !== 'ai' && button.value !== 'online') return;
+		switchPokemonAIMode(button.value, button);
+	};
+	startOnlineBattle = (ev: Event) => {
+		startOfficialRandomBattle(ev.currentTarget as HTMLElement);
+	};
+	cancelOnlineSearch = () => {
+		PS.mainmenu.cancelSearch();
+	};
+	challengeOnlinePlayer = (ev: Event) => {
+		ev.preventDefault();
+		const form = ev.currentTarget as HTMLFormElement;
+		const input = form.elements.namedItem('opponent') as HTMLInputElement;
+		challengeOfficialPlayer(input.value, input);
+	};
+	renderModeSwitcher() {
+		return <div class="pokemonai-mode-switch" role="group" aria-label="对战模式">
+			<button
+				class={PokemonAIApp.isAI() ? 'cur' : ''} value="ai" onClick={this.switchMode}
+				aria-pressed={PokemonAIApp.isAI()}
+			>
+				<i class="fa fa-microchip" aria-hidden></i> AI 训练
+			</button>
+			<button
+				class={PokemonAIApp.isOnline() ? 'cur' : ''} value="online" onClick={this.switchMode}
+				aria-pressed={PokemonAIApp.isOnline()}
+			>
+				<i class="fa fa-globe" aria-hidden></i> 真人竞技
+			</button>
+		</div>;
+	}
+	renderConnectionStatus() {
+		const connected = !!PS.connection?.connected && !PS.isOffline;
+		return <div class={`pokemonai-status ${connected ? 'online' : 'offline'}`}>
+			<span class="pokemonai-status-dot" aria-hidden></span>
+			{connected ? `${PokemonAIApp.profile.label}服务器已连接` : '服务器连接中断'}
+			{!connected && <button class="button" data-cmd="/reconnect">重新连接</button>}
+		</div>;
+	}
+	renderAIHome() {
+		const vgcCount = PokemonAIConfig.opponents.filter(
+			opponent => opponent.formatId === 'champions-reg-mb'
+		).length;
+		const randomOpponents = PokemonAIConfig.opponents.filter(
+			opponent => opponent.formatId === 'gen9-random'
+		);
+		return <section class="pokemonai-mode-content" aria-labelledby="pokemonai-ai-title">
+			<div class="pokemonai-section-heading">
+				<div><span class="pokemonai-kicker">TRAINING MODE</span>
+					<h2 id="pokemonai-ai-title">选择训练强度</h2></div>
+				<span class="pokemonai-format">VGC 六选四 · 随机单打</span>
+			</div>
+			<div class="pokemonai-vgc-card">
+				<div>
+					<strong><i class="fa fa-th-large" aria-hidden></i> Champions VGC 2026 Reg M-B</strong>
+					<small>{vgcCount} 档难度 · 六选四 · 开放队伍表 · 需要先选择队伍</small>
+				</div>
+				<a class="button" href="ai-battle">选择规则与队伍</a>
+			</div>
+			<div class="pokemonai-difficulty-grid">
+				{randomOpponents.map((opponent, index) => <button
+					class={`pokemonai-difficulty difficulty-${opponent.id}`} value={opponent.id}
+					onClick={ev => challengePokemonAI(opponent, undefined, ev.currentTarget as HTMLButtonElement)}
+					disabled={PS.isOffline}
+				>
+					<span class="difficulty-number">0{index + 1}</span>
+					<strong>{opponent.label}</strong>
+					<small>{opponent.description}</small>
+					<span class="difficulty-action">开始训练 <i class="fa fa-chevron-right" aria-hidden></i></span>
+				</button>)}
+			</div>
+		</section>;
+	}
+	renderOfficialAuth() {
+		const hasSid = PokemonAIApp.hasOfficialSid();
+		const authState = PokemonAIApp.officialAuthState;
+		let detail = hasSid ? '设备授权已保存，正在验证官方账号。' : '可使用游客昵称，也可以授权已有账号。';
+		if (authState === 'authenticated') detail = `已授权账号：${PS.user.registered?.name || PS.user.name}`;
+		if (authState === 'invalid') detail = '设备授权已失效，请重新获取 SID。';
+		if (authState === 'network-error') detail = '暂时无法验证授权，请检查网络后重试。';
+		return <div class={`pokemonai-account-card auth-${authState}`}>
+			<div><strong><i class="fa fa-shield" aria-hidden></i> 官方账号</strong><small>{detail}</small></div>
+			<a class="button" href="official-account">{hasSid ? '管理授权' : '授权账号'}</a>
+		</div>;
+	}
+	renderOnlineHome() {
+		const searching = !!PS.mainmenu.searchingFormat();
+		return <section class="pokemonai-mode-content online-mode" aria-labelledby="pokemonai-online-title">
+			<div class="pokemonai-section-heading">
+				<div><span class="pokemonai-kicker">ONLINE MODE</span>
+					<h2 id="pokemonai-online-title">官方真人竞技</h2></div>
+				<span class="pokemonai-format">第九世代随机对战</span>
+			</div>
+			{this.renderOfficialAuth()}
+			<div class="pokemonai-online-grid">
+				<div class="pokemonai-action-card primary">
+					<span class="card-icon"><i class="fa fa-bolt" aria-hidden></i></span>
+					<h3>快速匹配</h3>
+					<p>在 Pokémon Showdown 官方天梯寻找真人对手。</p>
+					{searching ? <button class="button danger" onClick={this.cancelOnlineSearch}>
+						<i class="fa fa-refresh fa-spin" aria-hidden></i> 取消匹配
+					</button> : <button class="button strong" onClick={this.startOnlineBattle} disabled={PS.isOffline}>
+						开始匹配
+					</button>}
+				</div>
+				<form class="pokemonai-action-card" onSubmit={this.challengeOnlinePlayer}>
+					<span class="card-icon"><i class="fa fa-crosshairs" aria-hidden></i></span>
+					<h3>挑战指定玩家</h3>
+					<p>输入对方的 Showdown 昵称，发送随机对战挑战。</p>
+					<input class="textbox" name="opponent" placeholder="对手昵称" autocomplete="off" />
+					<button class="button strong" type="submit" disabled={PS.isOffline}>发送挑战</button>
+				</form>
+			</div>
+			<p class="pokemonai-official-fallback">
+				官方服务异常？<a href="https://play.pokemonshowdown.com/" target="_blank" rel="noopener noreferrer">打开官方页面</a>
+			</p>
+		</section>;
+	}
+	renderPokemonAIHome() {
+		return <PSPanelWrapper room={this.props.room} onDragEnter={this.handleDragEnter}>
+			<div class="pokemonai-home">
+				<header class="pokemonai-hero">
+					<div class="pokemonai-brand"><span class="brand-mark"><i class="fa fa-circle" aria-hidden></i></span>
+						<div><h1>Pokémon<span>AI</span></h1><p>对战训练终端</p></div>
+					</div>
+					{this.renderModeSwitcher()}
+				</header>
+				{this.renderConnectionStatus()}
+				{this.renderGames()}
+				{PokemonAIApp.isAI() ? this.renderAIHome() : this.renderOnlineHome()}
+				<footer class="pokemonai-footer">
+					<span>开源个人对战训练项目</span>
+					<a href={PokemonAIConfig.sourceUrl} target="_blank">源码与许可证</a>
+				</footer>
+			</div>
+		</PSPanelWrapper>;
+	}
 	override render() {
+		if (Config.pokemonaiApp) return this.renderPokemonAIHome();
 		const onlineButton = ' button' + (PS.isOffline ? ' disabled' : '');
 		const tinyLayout = this.props.room.width < 620 ? ' tiny-layout' : '';
 		return <PSPanelWrapper room={this.props.room} onDragEnter={this.handleDragEnter}>
@@ -822,7 +984,7 @@ class AIBattlePanel extends PSRoomPanel {
 	static readonly location = 'modal-popup';
 
 	selectedFormatId: string = PokemonAIConfig.defaultFormat;
-	selectedOpponentId: string = '';
+	selectedOpponentId = '';
 
 	selectFormat = (ev: MouseEvent) => {
 		this.selectedFormatId = (ev.currentTarget as HTMLButtonElement).value;
@@ -856,7 +1018,8 @@ class AIBattlePanel extends PSRoomPanel {
 			</div>
 			<h3>1. 规则</h3>
 			<div class="pokemonai-format-grid">
-				{PokemonAIConfig.formats.map(entry => <button key={entry.id}
+				{PokemonAIConfig.formats.map(entry => <button
+					key={entry.id}
 					class={`button pokemonai-format-card${entry.id === format.id ? ' cur' : ''}`}
 					value={entry.id} onClick={this.selectFormat}
 				>
@@ -866,7 +1029,8 @@ class AIBattlePanel extends PSRoomPanel {
 			</div>
 			<h3>2. 难度</h3>
 			<div class="pokemonai-level-grid">
-				{opponents.map(opponent => <button key={opponent.id}
+				{opponents.map(opponent => <button
+					key={opponent.id}
 					class={`button pokemonai-level-card${opponent.id === selected?.id ? ' cur' : ''}`}
 					value={opponent.id} onClick={this.selectOpponent}
 				>
@@ -876,7 +1040,7 @@ class AIBattlePanel extends PSRoomPanel {
 			</div>
 			<h3>3. 队伍</h3>
 			{format.requiresTeam && rememberedTeam && <p class="pokemonai-selected-team">
-				<i class="fa fa-check-circle" aria-hidden></i> 快速对战队伍：
+				<i class="fa fa-check-circle" aria-hidden></i>{' 快速对战队伍：'}
 				<strong>{rememberedTeam.name || '阵容库队伍'}</strong>
 			</p>}
 			<TeamForm
@@ -928,10 +1092,8 @@ class AITeamLibraryPanel extends PSRoomPanel {
 	formatFilter = 'all';
 
 	override componentDidMount() {
-		fetch(PokemonAIConfig.teamLibraryUrl, { cache: 'no-cache' }).then(response => {
-			if (!response.ok) throw new Error(`HTTP ${response.status}`);
-			return response.json();
-		}).then(data => {
+		Net(PokemonAIConfig.teamLibraryUrl).get().then(text => {
+			const data = JSON.parse(text) as { teams?: PokemonAITeamSummary[] };
 			this.teams = Array.isArray(data?.teams) ? data.teams : [];
 			this.forceUpdate();
 		}).catch(error => {
@@ -956,11 +1118,11 @@ class AITeamLibraryPanel extends PSRoomPanel {
 		const id = (ev.currentTarget as HTMLButtonElement).value;
 		const team = this.teams?.find(entry => entry.id === id);
 		if (!team) return;
-		const copyOperation = navigator.clipboard?.writeText(team.paste);
-		if (!copyOperation) {
+		if (!navigator.clipboard?.writeText) {
 			PS.alert(team.paste, { width: 600, parentElem: ev.currentTarget as HTMLElement });
 			return;
 		}
+		const copyOperation = navigator.clipboard.writeText(team.paste);
 		copyOperation.then(() => {
 			PS.alert('已复制 Showdown 队伍文本。可在 Teambuilder 中导入。', { parentElem: ev.currentTarget as HTMLElement });
 		}).catch(() => {
@@ -969,7 +1131,10 @@ class AITeamLibraryPanel extends PSRoomPanel {
 	};
 
 	override render() {
-		const formats = [...new Set((this.teams || []).map(team => team.format_id))];
+		const formats: string[] = [];
+		for (const team of this.teams || []) {
+			if (!formats.includes(team.format_id)) formats.push(team.format_id);
+		}
 		const teams = (this.teams || []).filter(team => this.formatFilter === 'all' || team.format_id === this.formatFilter);
 		return <PSPanelWrapper room={this.props.room} width={820}><div class="pad pokemonai-library">
 			<div class="pokemonai-launcher-head">
@@ -984,7 +1149,9 @@ class AITeamLibraryPanel extends PSRoomPanel {
 				<p><i class="fa fa-refresh fa-spin" aria-hidden></i> 正在读取阵容库…</p> :
 				<div class="pokemonai-team-grid">{teams.map(team => <article key={team.id} class="pokemonai-team-card">
 					<header><strong>{team.name}</strong><small>{team.archetype}</small></header>
-					<div class="pokemonai-roster">{team.roster.map((mon, index) => <span key={`${mon.species}-${index}`}>{mon.species_name || Dex.species.get(mon.species).name || mon.species}</span>)}</div>
+					<div class="pokemonai-roster">{team.roster.map((mon, index) => <span key={`${mon.species}-${index}`}>
+						{mon.species_name || Dex.species.get(mon.species).name || mon.species}
+					</span>)}</div>
 					<p>{team.tags.map(tag => <span key={tag} class="pokemonai-tag">{tag}</span>)}</p>
 					<footer>
 						<small>{team.source_label} · {pokemonAIValidationLabel(team.validation_status)}</small>
@@ -996,6 +1163,57 @@ class AITeamLibraryPanel extends PSRoomPanel {
 				</article>)}</div>}
 			{this.teams && !teams.length && <p>当前筛选条件下没有阵容。</p>}
 			<p><small>外部仓库只读取固定提交中的数据文件；同步器不会执行仓库代码。</small></p>
+		</div></PSPanelWrapper>;
+	}
+}
+
+class OfficialAccountPanel extends PSRoomPanel {
+	static readonly id = 'officialaccount';
+	static readonly routes = ['official-account'];
+	static readonly title = '官方账号授权';
+	static readonly location = 'modal-popup';
+
+	declare state: { error?: string };
+
+	saveSID = (ev: Event) => {
+		ev.preventDefault();
+		const input = this.base?.querySelector<HTMLInputElement>('input[name=sid]');
+		if (!input || !PokemonAIApp.saveOfficialSid(input.value)) {
+			this.setState({ error: 'SID 不能为空，且不能包含换行。' });
+			return;
+		}
+		location.reload();
+	};
+	clearSID = () => {
+		PokemonAIApp.clearOfficialSid();
+		location.reload();
+	};
+
+	override render() {
+		const hasSid = PokemonAIApp.hasOfficialSid();
+		return <PSPanelWrapper room={this.props.room} width={430}><div class="pad pokemonai-auth-panel">
+			<h2><i class="fa fa-shield" aria-hidden></i> 官方账号授权</h2>
+			<p>PokémonAI 不接收你的 Showdown 密码。请先在官方页面登录，再复制当前设备的 Test Client SID。</p>
+			<p><a
+				class="button" href="https://play.pokemonshowdown.com/testclient-key.php"
+				target="_blank" rel="noopener noreferrer"
+			>前往官方页面获取 SID <i class="fa fa-external-link" aria-hidden></i></a></p>
+			<form onSubmit={this.saveSID}>
+				<label class="label">
+					<span>设备 SID</span>
+					<input
+						class="textbox" type="password" name="sid" autocomplete="off"
+						placeholder="粘贴 SID，不会上传到 PokémonAI 服务器"
+					/>
+				</label>
+				{this.state.error && <p class="message-error">{this.state.error}</p>}
+				<p class="buttonbar">
+					<button class="button strong" type="submit">保存并验证</button> {}
+					{hasSid && <button class="button danger" type="button" onClick={this.clearSID}>清除已有授权</button>} {}
+					<button class="button" type="button" data-cmd="/close">取消</button>
+				</p>
+			</form>
+			<p><small>SID 是敏感的会话凭据，只保存在当前浏览器。不要发送给其他人。</small></p>
 		</div></PSPanelWrapper>;
 	}
 }
@@ -1320,4 +1538,4 @@ export class TeamForm extends preact.Component<{
 	}
 }
 
-PS.addRoomType(NewsPanel, AIBattlePanel, AITeamLibraryPanel, MainMenuPanel);
+PS.addRoomType(NewsPanel, AIBattlePanel, AITeamLibraryPanel, OfficialAccountPanel, MainMenuPanel);

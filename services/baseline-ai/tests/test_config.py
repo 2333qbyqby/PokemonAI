@@ -1,5 +1,7 @@
 import argparse
 import importlib.util
+import json
+import re
 from pathlib import Path
 
 import pytest
@@ -63,6 +65,64 @@ def test_generated_client_config_matches_registry():
     assert 'style/pokemonai.css' in client_html
 
 
+def test_dual_mode_bootstrap_precedes_the_showdown_client():
+    client_html = (
+        ROOT / "apps" / "showdown-client" / "play.pokemonshowdown.com" / "testclient-new.html"
+    ).read_text(encoding="utf-8")
+    app_position = client_html.index('src="js/pokemonai-app.js?')
+    client_position = client_html.index('src="js/client-main.js?')
+    assert app_position < client_position
+    assert not re.search(r'<script[^>]+src=["\']https?://', client_html, re.IGNORECASE)
+    inline_scripts = re.findall(r"<script(?:\s[^>]*)?>(.*?)</script>", client_html, re.DOTALL | re.IGNORECASE)
+    assert all(not script.strip() for script in inline_scripts)
+
+
+def test_checked_in_simplified_chinese_snapshot_is_pinned_and_complete():
+    snapshot = (
+        ROOT
+        / "apps"
+        / "showdown-client"
+        / "play.pokemonshowdown.com"
+        / "src"
+        / "pokemonai-zh-hans-data.ts"
+    ).read_text(encoding="utf-8")
+    assert "2cda0b56a3a8ad2529d8aac73528225f96d2c848" in snapshot
+    for entry in (
+        '"pikachu": "皮卡丘"',
+        '"thunderbolt": "十万伏特"',
+        '"levitate": "飘浮"',
+        '"leftovers": "吃剩的东西"',
+        '"fire": "火"',
+    ):
+        assert entry in snapshot
+
+
+def test_gen9_random_battle_terms_have_chinese_entries():
+    snapshot = (
+        ROOT
+        / "apps"
+        / "showdown-client"
+        / "play.pokemonshowdown.com"
+        / "src"
+        / "pokemonai-zh-hans-data.ts"
+    ).read_text(encoding="utf-8")
+    random_sets = json.loads(
+        (ROOT / "vendor" / "pokemon-showdown" / "data" / "random-battles" / "gen9" / "sets.json")
+        .read_text(encoding="utf-8")
+    )
+
+    def showdown_id(value: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", value.lower())
+
+    required = set(random_sets)
+    for pokemon in random_sets.values():
+        for battle_set in pokemon["sets"]:
+            for field in ("movepool", "abilities", "items", "teraTypes"):
+                required.update(showdown_id(value) for value in battle_set.get(field, []))
+    missing = sorted(term for term in required if f'"{showdown_id(term)}":' not in snapshot)
+    assert not missing, f"Missing Gen 9 Random Battle Chinese terms: {missing}"
+
+
 def test_expert_runner_builds_arguments_from_registry():
     runner_path = ROOT / "services" / "expert-ai" / "runner.py"
     spec = importlib.util.spec_from_file_location("pokemonai_expert_runner", runner_path)
@@ -98,6 +158,10 @@ def test_production_network_and_auth_boundaries():
     assert "handle /showdown/*" in caddyfile
     assert "reverse_proxy showdown:8000" in caddyfile
     assert "rewrite @pokemonai_root /testclient-new.html" in caddyfile
+    assert 'http://127.0.0.1' in caddyfile
+    assert "script-src 'self'" in caddyfile
+    assert "wss://sim3.psim.us" in caddyfile
+    assert "https://play.pokemonshowdown.com" in caddyfile
 
 
 def test_rejects_duplicate_usernames(tmp_path: Path):

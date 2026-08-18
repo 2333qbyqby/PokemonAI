@@ -1,0 +1,185 @@
+"""Generate the checked-in Showdown ID -> Simplified Chinese term table.
+
+The browser never calls PokéAPI. This maintenance script reads the exact
+PokeAPI/api-data commit named below and writes one deterministic TypeScript
+snapshot. Alternate-form names that the static API does not localize live in
+config/zh-hans-overrides.json.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import time
+import urllib.error
+import urllib.request
+import zipfile
+from pathlib import Path
+
+
+API_DATA_COMMIT = "2cda0b56a3a8ad2529d8aac73528225f96d2c848"
+ARCHIVE_URL = f"https://codeload.github.com/PokeAPI/api-data/zip/{API_DATA_COMMIT}"
+LANGUAGE = "zh-hans"
+RESOURCE_SECTIONS = {
+    "pokemon-species": "pokemon",
+    "move": "moves",
+    "ability": "abilities",
+    "item": "items",
+    "type": "types",
+}
+
+
+def showdown_id(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", value.lower())
+
+
+def resolve_api_root(source_dir: Path) -> Path | None:
+    candidates = (
+        source_dir,
+        source_dir / "data" / "api" / "v2",
+        source_dir / "api" / "v2",
+        source_dir / "v2",
+    )
+    return next((candidate for candidate in candidates if (candidate / "pokemon-species").is_dir()), None)
+
+
+def prepare_api_root(project_root: Path, source_dir: Path | None) -> Path:
+    if source_dir:
+        resolved = resolve_api_root(source_dir.resolve())
+        if not resolved:
+            raise ValueError(f"Could not find data/api/v2 below {source_dir}")
+        return resolved
+
+    cache_root = project_root / ".cache" / "pokeapi-api-data" / API_DATA_COMMIT
+    api_root = cache_root / "data" / "api" / "v2"
+    if (api_root / "pokemon-species").is_dir():
+        return api_root
+
+    archive_path = cache_root.with_suffix(".zip")
+    archive_path.parent.mkdir(parents=True, exist_ok=True)
+    if not archive_path.is_file():
+        last_error: Exception | None = None
+        for attempt in range(5):
+            try:
+                request = urllib.request.Request(
+                    ARCHIVE_URL, headers={"User-Agent": "PokemonAI-i18n-generator"}
+                )
+                with urllib.request.urlopen(request, timeout=180) as response:
+                    archive_path.write_bytes(response.read())
+                break
+            except (urllib.error.URLError, TimeoutError) as error:
+                last_error = error
+                time.sleep(2**attempt)
+        else:
+            raise RuntimeError(f"Unable to download {ARCHIVE_URL}: {last_error}")
+
+    prefix = f"api-data-{API_DATA_COMMIT}/data/api/v2/"
+    wanted = tuple(f"{prefix}{resource}/" for resource in RESOURCE_SECTIONS)
+    with zipfile.ZipFile(archive_path) as archive:
+        for member in archive.infolist():
+            if not member.filename.startswith(wanted) or member.is_dir():
+                continue
+            relative = Path(member.filename.removeprefix(f"api-data-{API_DATA_COMMIT}/"))
+            destination = cache_root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(archive.read(member))
+    if not (api_root / "pokemon-species").is_dir():
+        raise RuntimeError("Downloaded api-data archive did not contain data/api/v2")
+    return api_root
+
+
+def localized_resource_table(resource_root: Path) -> dict[str, str]:
+    result: dict[str, str] = {}
+    resource_files = sorted(
+        (path for path in resource_root.glob("*/index.json") if path.parent.name.isdigit()),
+        key=lambda path: int(path.parent.name),
+    )
+    for resource_file in resource_files:
+        payload = json.loads(resource_file.read_text(encoding="utf-8"))
+        identifier = payload.get("name", "")
+        localized_name = next(
+            (
+                entry.get("name", "")
+                for entry in payload.get("names", [])
+                if entry.get("language", {}).get("name") == LANGUAGE
+            ),
+            "",
+        )
+        if identifier and localized_name:
+            result[showdown_id(identifier)] = localized_name
+    return result
+
+
+def generate(project_root: Path, source_dir: Path | None = None) -> str:
+    api_root = prepare_api_root(project_root, source_dir)
+    tables = {
+        section: localized_resource_table(api_root / resource)
+        for resource, section in RESOURCE_SECTIONS.items()
+    }
+
+    overrides_path = project_root / "config" / "zh-hans-overrides.json"
+    overrides = json.loads(overrides_path.read_text(encoding="utf-8"))
+    for section, entries in overrides.items():
+        if section not in tables:
+            raise ValueError(f"Unknown override section: {section}")
+        tables[section].update(entries)
+
+    def render_table(entries: dict[str, str]) -> str:
+        lines = [
+            f"\t\t{json.dumps(key, ensure_ascii=False)}: {json.dumps(value, ensure_ascii=False)},"
+            for key, value in sorted(entries.items())
+        ]
+        return "\n".join(lines)
+
+    return f'''/** Generated by scripts/generate-zh-hans.py. Do not edit by hand. */
+export const PokemonAIZhHansData = {{
+\tmetadata: {{
+\t\tsource: 'PokeAPI/api-data',
+\t\tcommit: '{API_DATA_COMMIT}',
+\t\tlanguage: 'zh-Hans',
+\t}},
+\tpokemon: {{
+{render_table(tables['pokemon'])}
+\t}} as Record<string, string>,
+\tmoves: {{
+{render_table(tables['moves'])}
+\t}} as Record<string, string>,
+\tabilities: {{
+{render_table(tables['abilities'])}
+\t}} as Record<string, string>,
+\titems: {{
+{render_table(tables['items'])}
+\t}} as Record<string, string>,
+\ttypes: {{
+{render_table(tables['types'])}
+\t}} as Record<string, string>,
+}} as const;
+'''
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--source-dir",
+        type=Path,
+        help="Optional local PokeAPI/api-data checkout or data/api/v2 directory.",
+    )
+    args = parser.parse_args()
+    project_root = Path(__file__).resolve().parents[1]
+    output = args.output or (
+        project_root
+        / "apps"
+        / "showdown-client"
+        / "play.pokemonshowdown.com"
+        / "src"
+        / "pokemonai-zh-hans-data.ts"
+    )
+    rendered = generate(project_root, args.source_dir)
+    output.write_text(rendered, encoding="utf-8", newline="\n")
+    print(f"Wrote {output}")
+
+
+if __name__ == "__main__":
+    main()

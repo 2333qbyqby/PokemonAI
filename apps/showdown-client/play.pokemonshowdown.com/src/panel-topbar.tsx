@@ -17,6 +17,8 @@ import { PSView } from "./panels";
 import type { Battle } from "./battle";
 import { Dex } from "./battle-dex";
 import { BattleLog } from "./battle-log"; // optional
+import { PokemonAIApp } from "./pokemonai-app";
+import { switchPokemonAIMode } from "./pokemonai";
 
 window.addEventListener('dragover', e => {
 	// this prevents the bounce-back animation
@@ -224,18 +226,28 @@ export class PSHeader extends preact.Component {
 	}
 	renderUser() {
 		if (!PS.connection?.connected) {
-			return <button class="button" disabled><em>Offline</em></button>;
+			return <button class="button" disabled><em>离线</em></button>;
 		}
 		if (PS.user.initializing) {
-			return <button class="button" disabled><em>Connecting...</em></button>;
+			return <button class="button" disabled><em>连接中...</em></button>;
 		}
 		if (!PS.user.named) {
-			return <a class="button" href="login">Choose name</a>;
+			return <a class="button" href="login">设置昵称</a>;
 		}
 		const userColor = window.BattleLog && `color:${PS.user.away ? '#888' : BattleLog.usernameColor(PS.user.userid)}`;
 		return <span class="username" style={userColor}>
 			<span class="usernametext">{PS.user.name}</span>
 		</span>;
+	}
+	switchMode = (ev: Event) => {
+		const nextMode = PokemonAIApp.isAI() ? 'online' : 'ai';
+		switchPokemonAIMode(nextMode, ev.currentTarget as HTMLElement);
+	};
+	renderModeBadge() {
+		return <button class={`pokemonai-mode-badge mode-${PokemonAIApp.mode}`} onClick={this.switchMode}>
+			<i class={`fa ${PokemonAIApp.isAI() ? 'fa-microchip' : 'fa-globe'}`} aria-hidden></i> {}
+			{PokemonAIApp.profile.label}
+		</button>;
 	}
 	renderVertical() {
 		const miniRoomTabs = PSHeader.notifyingMiniRoomTabs();
@@ -265,6 +277,7 @@ export class PSHeader extends preact.Component {
 				</div>
 			</div>
 			<div class="userbar">
+				{this.renderModeBadge()} {}
 				{this.renderUser()} {}
 				<div style="float:right">
 					<button class="icon button" data-href="volume" title="Sound" aria-label="Sound" onDblClick={PSHeader.toggleMute}>
@@ -287,6 +300,7 @@ export class PSHeader extends preact.Component {
 			<div class="maintabbarbottom"></div>
 			{null /* vertical tabs */}
 			<div class="userbar">
+				{this.renderModeBadge()} {}
 				{this.renderUser()} {}
 				<button class="icon button" data-href="volume" title="Sound" aria-label="Sound" onDblClick={PSHeader.toggleMute}>
 					<i class={PS.prefs.mute ? 'fa fa-volume-off' : 'fa fa-volume-up'}></i>

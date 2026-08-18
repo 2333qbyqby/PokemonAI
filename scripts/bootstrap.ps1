@@ -137,7 +137,20 @@ if ($LASTEXITCODE -ne 0) { throw 'Team library build failed' }
 
 Write-Host '[7/7] Installing and building Showdown client'
 Invoke-LocalNpm -WorkingDirectory (Join-Path $ProjectRoot 'apps\showdown-client') ci
-Invoke-LocalNodeScript -WorkingDirectory (Join-Path $ProjectRoot 'apps\showdown-client') -Script 'build'
+$clientCacheRoot = Join-Path $ProjectRoot 'apps\showdown-client\caches'
+$clientServerCache = Join-Path $clientCacheRoot 'pokemon-showdown'
+New-Item -ItemType Directory -Force -Path $clientCacheRoot | Out-Null
+if (-not (Test-Path -LiteralPath $clientServerCache)) {
+    New-Item -ItemType Junction -Path $clientServerCache `
+        -Target (Join-Path $ProjectRoot 'vendor\pokemon-showdown') | Out-Null
+}
+$oldPinnedServer = $env:POKEMON_SHOWDOWN_PINNED
+try {
+    $env:POKEMON_SHOWDOWN_PINNED = '1'
+    Invoke-LocalNodeScript -WorkingDirectory (Join-Path $ProjectRoot 'apps\showdown-client') -Script 'build' -Arguments @('full')
+} finally {
+    $env:POKEMON_SHOWDOWN_PINNED = $oldPinnedServer
+}
 
 & (Join-Path $PSScriptRoot 'package-source.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Source archive generation failed' }

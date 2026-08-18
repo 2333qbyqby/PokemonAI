@@ -6,16 +6,23 @@ const child_process = require('node:child_process');
 
 process.chdir(__dirname + '/..');
 
+const usePinnedServer = process.env.POKEMON_SHOWDOWN_PINNED === '1';
+
 if (!fs.existsSync('caches/pokemon-showdown')) {
+	if (usePinnedServer) throw new Error('POKEMON_SHOWDOWN_PINNED requires caches/pokemon-showdown');
 	child_process.execSync('git clone https://github.com/smogon/pokemon-showdown.git', {
 		cwd: 'caches',
 	});
 }
 
-process.stdout.write("Syncing data from Git repository... ");
-child_process.execSync('git pull', { cwd: 'caches/pokemon-showdown' });
-child_process.execSync('npm run build', { cwd: 'caches/pokemon-showdown' });
-console.log("DONE");
+if (!usePinnedServer) {
+	process.stdout.write("Syncing data from Git repository... ");
+	child_process.execSync('git pull', { cwd: 'caches/pokemon-showdown' });
+	child_process.execSync('npm run build', { cwd: 'caches/pokemon-showdown' });
+	console.log("DONE");
+} else {
+	console.log("Using pinned Pokemon Showdown server data.");
+}
 
 const Dex = require('../caches/pokemon-showdown/dist/sim/dex').Dex;
 const CompoundWordNames = require('../caches/pokemon-showdown/dist/data/aliases').CompoundWordNames;

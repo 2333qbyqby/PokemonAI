@@ -13,6 +13,8 @@ function makeContext() {
 	const calls = {alerts: [], joins: [], sends: []};
 	const context = {
 		Date, JSON, console,
+		innerHeight: 844,
+		innerWidth: 390,
 		localStorage: {
 			getItem: key => storage.get(key) ?? null,
 			removeItem: key => storage.delete(key),
@@ -20,13 +22,24 @@ function makeContext() {
 		},
 		PS: {
 			isOffline: false,
-			user: {named: true},
+			rooms: {},
+			user: {named: true, userid: 'localuser'},
 			mainmenu: {},
 			alert: (...args) => calls.alerts.push(args),
+			confirm: async () => true,
 			join: (...args) => calls.joins.push(args),
 			requestNotifications() {},
 			send: command => calls.sends.push(command),
 		},
+		PokemonAIApp: {
+			mode: 'ai',
+			isAI() { return this.mode === 'ai'; },
+			isOnline() { return this.mode === 'online'; },
+			navigateToMode(mode) { calls.navigated = mode; },
+			storageKeys: {orientationTipSeen: 'pokemonai-orientation-tip-seen'},
+		},
+		matchMedia: () => ({matches: true}),
+		setTimeout: callback => callback(),
 		toID: text => String(text).toLowerCase().replace(/[^a-z0-9]+/g, ''),
 	};
 	vm.createContext(context);
@@ -34,7 +47,8 @@ function makeContext() {
 		`${configSource}\n${aiSource}\nthis.api = {` +
 		`PokemonAIConfig, findPokemonAIOpponent, findPokemonAIFormat, challengePokemonAI, ` +
 		`rememberPokemonAITeam, getRememberedPokemonAITeam, resumePendingPokemonAIChallenge, ` +
-		`buildPokemonAIChallengeCommand, buildPokemonAIRematchCommand};`,
+		`buildPokemonAIChallengeCommand, buildPokemonAIRematchCommand, startOfficialRandomBattle, ` +
+		`challengeOfficialPlayer, resumePendingOnlineAction, switchPokemonAIMode};`,
 		context
 	);
 	return {api: context.api, calls, context, storage};
@@ -110,5 +124,34 @@ describe('PokemonAI client flow', () => {
 		assert.equal(fixture.calls.alerts.length, 1);
 		assert.deepEqual(fixture.calls.sends, []);
 		assert.equal(fixture.storage.size, 0);
+	});
+
+	it('limits official matchmaking and challenges to Gen 9 Random Battle', () => {
+		fixture.context.PokemonAIApp.mode = 'online';
+		fixture.api.startOfficialRandomBattle();
+		fixture.api.challengeOfficialPlayer('Other Player');
+		assert.deepEqual(fixture.calls.sends, [
+			'/utm ', '/search gen9randombattle',
+			'/utm ', '/challenge Other Player, gen9randombattle',
+		]);
+		assert.equal([...fixture.storage.keys()].some(key => key.includes('pending')), false);
+	});
+
+	it('keeps AI and official actions isolated by mode', () => {
+		fixture.api.startOfficialRandomBattle();
+		assert.match(fixture.calls.alerts[0][0], /真人竞技模式/);
+		fixture.context.PokemonAIApp.mode = 'online';
+		fixture.api.challengePokemonAI(fixture.api.PokemonAIConfig.opponents[0]);
+		assert.match(fixture.calls.alerts[1][0], /AI 训练模式/);
+		assert.deepEqual(fixture.calls.sends, []);
+	});
+
+	it('forfeits before switching an active battle to the other server', async () => {
+		const battle = {type: 'battle', side: {}, battle: {ended: false}, send: command => fixture.calls.sends.push(command)};
+		fixture.context.PS.rooms = {battle};
+		fixture.api.switchPokemonAIMode('online');
+		await Promise.resolve();
+		assert.deepEqual(fixture.calls.sends, ['/forfeit']);
+		assert.equal(fixture.calls.navigated, 'online');
 	});
 });

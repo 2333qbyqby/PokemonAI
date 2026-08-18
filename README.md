@@ -1,9 +1,10 @@
 # PokémonAI
 
-PokémonAI 是一个面向个人娱乐的、自托管的宝可梦 AI 对战站。它复用 Pokémon
-Showdown 的规则引擎和战斗界面，在 PC 与手机浏览器中提供可调难度的
-**Pokémon Champions VGC 2026 Regulation M-B** 双打陪练，同时保留原项目的
-Gen 9 Random Battle 单打模式。
+PokémonAI 是一个个人使用、完全开源的宝可梦 AI 对战站。它复用 Pokémon Showdown
+的规则引擎和战斗界面，在 PC 与手机浏览器中提供可调难度的
+**Pokémon Champions VGC 2026 Regulation M-B** 双打陪练，同时保留 Gen 9 Random
+Battle 单打模式；一个剑盾风格中文界面既能连接自建 Pokémon Showdown 与 AI 训练，
+也能由浏览器直接连接 Showdown 官方服务器进行真人随机匹配或指定玩家挑战。
 
 项目的首要目标不是做复盘教练或天梯机器人，而是让玩家随时打开网页，选队后就能
 从轻松到较难地连续和 AI 对战。VGC 决策器只使用 CPU，不依赖显卡、LLM 或在线模型
@@ -22,8 +23,17 @@ API。
 - 一套 Preact/TypeScript UI 同时覆盖 PC 和手机，并提供可安装的 PWA 外壳。
 - 原有 RandomPlayer、MaxBasePowerPlayer、SimpleHeuristicsPlayer 与 Foul Play
   随机单打模式继续保留。
-- Windows 本地运行、Ubuntu VPS Docker Compose、Caddy HTTPS/Basic Auth、日志和
-  进程守护。
+- `AI 训练` / `真人竞技` 双模式，切换服务器时受控刷新，不保留跨服房间状态。
+- 随机单打四档难度与 VGC 八档难度，官方随机匹配、指定玩家挑战、游客昵称和
+  SID 设备授权流程；真人模式只开放 `gen9randombattle`。
+- 本地 `zh-Hans` 界面与术语数据，以及为 844×390 横屏对战优化的触控布局。
+- 官方密码不会进入 PokémonAI；SID 只保存在当前浏览器并仅发往官方登录接口。
+- Windows 项目内 Node/Python/Rust/uv 和两个互相隔离的 Python 环境。
+- 本地进程守护、完整 Showdown 对战 JSON、AI 决策日志和原始输出。
+- Ubuntu VPS 的 Docker Compose、Caddy HTTPS、Basic Auth 和 WebSocket 反代。
+- 页面内“源码”入口指向本次构建随站点提供的源码归档。
+
+暂不包括聊天大厅、赛事、多人并发、LLM、训练或排行榜。
 
 ## 工作方式
 
@@ -69,6 +79,14 @@ Champions 新增了当前通用 poke-env 静态数据中没有的 Mega 形态。
 需要 Windows 10/11、PowerShell、Git 和首次安装时可访问互联网。项目不会修改系统
 Node/Python/Rust 或系统 PATH，工具链都安装在 `.runtime/`。
 
+最简单的方式是在资源管理器中双击项目根目录的
+[`PokemonAI.bat`](PokemonAI.bat)。它会优先使用 PowerShell 7，首次运行时自动执行
+环境准备，遇到端口占用会从 8080/8000 开始自动选择附近的可用端口，最后打开浏览器。
+再次双击会直接打开已经运行的站点。停止时双击
+[`Stop-PokemonAI.bat`](Stop-PokemonAI.bat)。首次准备环境需要联网，可能需要几分钟。
+
+也可以在终端中手动执行：
+
 ```powershell
 .\scripts\bootstrap.ps1
 .\scripts\start-local.ps1
@@ -101,6 +119,35 @@ Node/Python/Rust 或系统 PATH，工具链都安装在 `.runtime/`。
 `master` 分支。bootstrap 同时会安装上面固定提交的 Champions 兼容 poke-env。第一次
 修复或从零创建 Python 环境需要 GitHub 网络访问；后续使用已有 `.runtime/` 不需要重复
 下载。
+
+## 使用双模式客户端
+
+默认入口是 `/?mode=ai`，顶部模式切换器和首页卡片可以进入真人模式。固定入口为：
+
+- `/?mode=ai`：连接本站 `/showdown`（本地开发时连接启动脚本显示的端口）；
+- `/?mode=online`：浏览器直接连接 `wss://sim3.psim.us/showdown/websocket`。
+
+AI 模式先设置游客昵称，再选择规则与难度：Champions VGC 六选四或经典随机单打。
+真人模式可直接“快速匹配”，或输入昵称发起指定玩家挑战；真人模式始终固定使用
+第九世代随机对战。对战中切换模式会要求确认，确认后先投降，再清理当前服务器状态
+并刷新到另一模式。
+
+手机首页支持竖屏；首次进入战斗会提示横置手机。844×390 横屏时，战场约占 65%，
+右侧是大尺寸选招/换人区，日志可按需展开。浏览器不会强制锁定屏幕方向。
+
+### 官方账号 SID 授权
+
+真人模式无需账号即可使用游客昵称。如果要使用已注册账号：
+
+1. 在客户端打开“官方账号授权”，前往官方 Test Client 页面并在官方域名完成登录；
+2. 复制官方页面提供的 SID，粘贴到 PokémonAI 的设备授权输入框；
+3. 保存后页面刷新，客户端收到官方 `challstr` 时直接向官方登录接口验证 SID。
+
+PokémonAI 不提供官方密码输入框，也不会把 SID 发送到自建 Showdown、VPS 后端、URL、
+埋点或普通日志。SID 仅保存在当前浏览器的 `pokemonai-official-sid` 键，可随时在授权页
+“清除本机授权”。授权失效时需要重新获取；普通网络故障不会自动删除 SID。账号注册、
+修改密码和切换其他注册账号仍在官方页面完成，这是 Showdown Test Client 的同源安全
+边界，而不是 PokémonAI 的账号系统。
 
 ## 阵容库与开源项目接入
 
@@ -149,6 +196,8 @@ Regulation 时，应先更新并验证 Showdown 锁定提交，再添加/修改 
   --output .\apps\showdown-client\play.pokemonshowdown.com\src\pokemonai-config.ts
 ```
 
+运行数据均在未提交的 `data/` 下（见“数据与日志”），战斗 UI 不硬编码机器人用户名。
+
 ## 测试
 
 完整 Windows 静态、Python、客户端构建、TypeScript、ESLint 与单元测试：
@@ -157,41 +206,46 @@ Regulation 时，应先更新并验证 Showdown 锁定提交，再添加/修改 
 .\scripts\test.ps1
 ```
 
+这会运行配置/部署测试、客户端构建、TypeScript 检查、ESLint 和客户端单元测试。
+测试覆盖模式解析/切换、固定格式、SID 生命周期与日志脱敏、本地中文快照和 CSP。
 包含所有机器人真实对战的集成测试：
 
 ```powershell
 .\scripts\test.ps1 -Integration
 ```
 
-只跑指定机器人可直接使用：
+只跑配置、部署与浏览器端静态测试：
 
 ```powershell
-.\.runtime\venvs\baseline-ai\Scripts\python.exe .\scripts\run-bot-integration.py `
-  --config .\config\agents.yaml `
-  --websocket-url ws://127.0.0.1:8000/showdown/websocket `
-  --output .\data\test-results\vgc.json `
-  --agent vgc-1 --agent vgc-8
+.\scripts\test-static.sh
 ```
 
-本次交付环境执行过的测试与未能在沙箱内执行的项目记录在
-[IMPLEMENTATION_REPORT.md](IMPLEMENTATION_REPORT.md)。
-
-## Ubuntu VPS 部署
-
-目标环境为 Ubuntu 24.04 x86-64、2 vCPU、4 GB RAM。VPS 只需要 Git、Docker
-Engine 和 Docker Compose 插件。
+## Docker 部署（Ubuntu VPS）
 
 ```bash
-cp .env.example .env
-docker run --rm caddy:2.10.2-alpine caddy hash-password --plaintext '换成强密码'
-# 编辑 .env
 docker compose -f compose.prod.yml up -d --build
 docker compose -f compose.prod.yml ps
 ```
 
-Showdown 只在 Compose 内网暴露 8000；Caddy 对页面、源码归档和 WebSocket 统一做
-HTTPS 与 Basic Auth。生产源码归档会在构建时确认并补齐固定提交的 Showdown 数据，
-满足修改版网络服务的源码提供要求。
+Showdown 只在 Compose 内网暴露 8000；Caddy 对页面、源码归档和 AI 模式的
+`/showdown/*` WebSocket 统一做 HTTPS 与 Basic Auth。真人模式的 WebSocket 和登录
+验证由手机浏览器直接访问官方域名，不经过 VPS。Caddy CSP 禁止远程可执行脚本，只
+放行本站、官方 WebSocket/登录接口和官方素材域名。证书与 Caddy 配置保存在命名卷，
+战斗和 AI 日志是仓库目录下的 bind mount。生产源码归档会在构建时确认并补齐固定
+提交的 Showdown 数据，满足修改版网络服务的源码提供要求。
+
+## 更新中文术语快照
+
+运行时不会请求 PokéAPI。维护者升级锁定数据后，可用独立基线 Python 环境重新生成：
+
+```powershell
+. .\scripts\common.ps1
+& $BaselinePython .\scripts\generate-zh-hans.py
+```
+
+若 GitHub 归档接口限流，可把锁定的 `PokeAPI/api-data` 仓库检出到本地，并传入
+`--source-dir path\to\api-data`。生成结果和提交元数据会一起进入仓库；
+特殊形态或新属性词条维护在 [config/zh-hans-overrides.json](config/zh-hans-overrides.json)。
 
 ## 数据与日志
 
@@ -210,6 +264,20 @@ HTTPS 与 Basic Auth。生产源码归档会在构建时确认并补齐固定提
 - `data/team-sources/cache/`：外部阵容源缓存；
 - `data/test-results/`：集成测试结果。
 
+本地 Supervisor 每秒检查 Showdown、AI 进程和静态站点；异常退出会自动拉起。
+`stop-local.ps1` 会先停止 Supervisor，再停止所有托管子进程。
+
+### 备份与恢复日志
+
+部署机上执行：
+
+```bash
+tar -C . -czf "pokemonai-logs-$(date +%Y%m%d-%H%M%S).tar.gz" data
+```
+
+恢复前停止 Compose，把归档中的 `data/` 解压回同一路径，再重新启动。证书卷通常
+无需随日志备份；如要迁移整台服务器，再单独备份 `pokemonai_caddy_data` 卷。
+
 ## 已知边界
 
 当前 VGC 最高难度是**完整合法联合动作的 CPU 启发式排序**，不是多回合精确
@@ -221,8 +289,16 @@ policy/value 网络都保留了清晰扩展边界，尚未伪装成已完成能�
 Match Service。PWA 会缓存启动器和阵容库，但离线时没有本地战斗服务，因此不能真正
 离线完成对战。当前交付是共享 Web 客户端，不包含 App Store/Play Store 原生壳。
 
+## 版本与升级
+
+所有版本锁定在 [config/runtime-lock.json](config/runtime-lock.json)、submodule 指针和
+客户端 subtree 提交。升级必须一次只处理一个上游，记录旧/新提交，重新生成配置，
+运行完整单元与集成测试，再重建生产镜像。详细命令见
+[docs/UPGRADING.md](docs/UPGRADING.md)。
+
 ## 许可证
 
 整合代码和修改后的客户端使用 AGPL-3.0-only。第三方组件继续保留自己的许可证，
-详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。项目不隶属于 Nintendo、
-Creatures、GAME FREAK 或 The Pokémon Company。
+详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。完整 AGPL 文本保留在
+`apps/showdown-client/LICENSE`，根目录 [LICENSE](LICENSE) 说明了整个项目的授权。
+项目不隶属于 Nintendo、Creatures、GAME FREAK 或 The Pokémon Company。

@@ -6,6 +6,7 @@
  */
 
 import { Config, PS } from "./client-main";
+import { PokemonAIApp } from "./pokemonai-app";
 
 declare const SockJS: any;
 declare const POKEMON_SHOWDOWN_TESTCLIENT_KEY: string | undefined;
@@ -455,11 +456,12 @@ export const PSLoginServer = new class {
 		// }
 		data.act = act;
 		let url = '/~~' + PS.server.id + '/action.php';
-		if (location.pathname.endsWith('.html')) {
+		if (PokemonAIApp.isOnline() || location.pathname.endsWith('.html')) {
 			url = 'https://' + Config.routes.client + url;
-			if (typeof POKEMON_SHOWDOWN_TESTCLIENT_KEY === 'string') {
-				data.sid = POKEMON_SHOWDOWN_TESTCLIENT_KEY.replace(/%2C/g, ',');
-			}
+			const sid = PokemonAIApp.getOfficialSid() || (
+				typeof POKEMON_SHOWDOWN_TESTCLIENT_KEY === 'string' ? POKEMON_SHOWDOWN_TESTCLIENT_KEY : ''
+			);
+			if (sid) data.sid = sid.replace(/%2C/g, ',');
 		}
 		return PSStorage.request('POST', url, data) || Net(url).get({ method: 'POST', body: data }).then(
 			res => res ?? null
@@ -566,7 +568,7 @@ export function Net(uri: string) {
 	return new NetRequest(uri);
 }
 
-Net.defaultRoute = '';
+Net.defaultRoute = 'https://play.pokemonshowdown.com';
 
 Net.encodeQuery = function (data: string | PostData): string {
 	if (typeof data === 'string') return data;

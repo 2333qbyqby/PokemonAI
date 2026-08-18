@@ -12,6 +12,7 @@ import { type BattleRoom } from "./panel-battle";
 import { ChatUserList, PSTextarea, type ChatRoom } from "./panel-chat";
 import { PSRoomPanel, PSPanelWrapper, PSView } from "./panels";
 import { PSHeader } from "./panel-topbar";
+import { PokemonAIApp } from "./pokemonai-app";
 
 const WARNING_SECONDS = 5;
 const BATTLE_LAYOUT_LABELS: Record<BattleLayoutPreference, string> = {
@@ -927,12 +928,13 @@ class LoginPanel extends PSRoomPanel {
 	override render() {
 		const room = this.props.room;
 		const loginState = room.args as PSLoginState;
+		const sidOnlyLogin = PokemonAIApp.isOnline() && !!(loginState?.needsPassword || loginState?.needsGoogle);
 		return <PSPanelWrapper room={room} width={280}><div class="pad">
-			<h3>Log in</h3>
+			<h3>选择昵称</h3>
 			<form onSubmit={this.handleSubmit}>
 				{loginState?.error && <p class="error">{loginState.error}</p>}
 				<p><label class="label">
-					Username: <small class="preview" style={`color:${BattleLog.usernameColor(toID(this.getUsername()))}`}>(color)</small>
+					昵称：<small class="preview" style={`color:${BattleLog.usernameColor(toID(this.getUsername()))}`}>(预览)</small>
 					<input
 						class="textbox" type="text" name="username"
 						onInput={this.update} onChange={this.update} autocomplete="username"
@@ -942,7 +944,11 @@ class LoginPanel extends PSRoomPanel {
 				{PS.user.named && !loginState && <p>
 					<small>(Others will be able to see your name change. To change name privately, use "Log out")</small>
 				</p>}
-				{loginState?.needsPassword && <p>
+				{sidOnlyLogin && <div class="pokemonai-login-sid">
+					<p><strong>这个昵称属于已注册账号。</strong></p>
+					<p>为了保护账号，PokémonAI 不接收官方密码。请通过设备 SID 授权，或换一个游客昵称。</p>
+				</div>}
+				{loginState?.needsPassword && !sidOnlyLogin && <p>
 					<i class="fa fa-level-up fa-rotate-90" aria-hidden></i> <strong>if you registered this name:</strong>
 					<label class="label">
 						Password: {}
@@ -956,13 +962,18 @@ class LoginPanel extends PSRoomPanel {
 						><i class="fa fa-eye" aria-hidden></i></button>
 					</label>
 				</p>}
-				{loginState?.needsGoogle && <>
+				{loginState?.needsGoogle && !sidOnlyLogin && <>
 					<p><i class="fa fa-level-up fa-rotate-90" aria-hidden></i> <strong>if you registered this name:</strong></p>
 					<p><GooglePasswordBox name={this.getUsername()} /></p>
 				</>}
 				<p class="buttonbar">
 					{PS.user.loggingIn ? (
-						<button disabled class="cur">Logging in...</button>
+						<button disabled class="cur">正在设置昵称...</button>
+					) : sidOnlyLogin ? (
+						<>
+							<a class="button" href="official-account"><strong>授权官方账号</strong></a> {}
+							<button type="button" onClick={this.reset} class="button">换个昵称</button>
+						</>
 					) : loginState?.needsPassword ? (
 						<>
 							<button type="submit" class="button"><strong>Log in</strong></button> {}
@@ -972,8 +983,8 @@ class LoginPanel extends PSRoomPanel {
 						<button type="button" onClick={this.reset} class="button">Cancel</button>
 					) : (
 						<>
-							<button type="submit" class="button"><strong>Choose name</strong></button> {}
-							<button type="button" name="closeRoom" class="button">Cancel</button>
+							<button type="submit" class="button"><strong>使用这个昵称</strong></button> {}
+							<button type="button" name="closeRoom" class="button">取消</button>
 						</>
 					)} {}
 				</p>

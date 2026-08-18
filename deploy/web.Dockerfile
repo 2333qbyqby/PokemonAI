@@ -5,11 +5,18 @@ ARG FOUL_PLAY_COMMIT=c90ecd3189dac1699a8603571990b635c0a7bf6e
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+WORKDIR /build/server
+COPY vendor/pokemon-showdown/package.json vendor/pokemon-showdown/package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY vendor/pokemon-showdown/ ./
+RUN node build
+
 WORKDIR /build/client
 COPY apps/showdown-client/package.json apps/showdown-client/package-lock.json ./
 RUN npm ci
 COPY apps/showdown-client/ ./
-RUN node build
+RUN mkdir -p caches && ln -s /build/server caches/pokemon-showdown && \
+    POKEMON_SHOWDOWN_PINNED=1 node build full
 
 WORKDIR /source
 COPY . ./

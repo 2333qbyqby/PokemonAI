@@ -11,6 +11,7 @@ copyright and license terms.
 | poke-env（VGC-Bench Champions fork） | `379a04628e42b2a2c94790c0788204b652f7ae1b` | MIT | <https://github.com/cameronangliss/poke-env> |
 | Foul Play | `c90ecd3189dac1699a8603571990b635c0a7bf6e` | GPL-3.0 | <https://github.com/pmariglia/foul-play> |
 | poke-engine | `0.0.48`, feature `terastallization` | MIT | <https://github.com/pmariglia/poke-engine> |
+| PokéAPI static data | `PokeAPI/api-data@2cda0b56a3a8ad2529d8aac73528225f96d2c848` | BSD-3-Clause | <https://github.com/PokeAPI/api-data> |
 | Caddy | `2.10.2` production image | Apache-2.0 | <https://github.com/caddyserver/caddy> |
 | VGC-Bench (MB1–MB4 vendored team subset; full source optional) | `d79f9532947ac114dce1dda2456a590afcd375b2` | MIT | <https://github.com/cameronangliss/vgc-bench> |
 
@@ -25,6 +26,11 @@ has a declarative adapter but is disabled and not redistributed because no repos
 license was confirmed during this implementation. The production web image contains a
 downloadable `pokemonai-source.tar.gz` generated from the exact source tree used to build the
 deployed client.
+
+The checked-in Simplified Chinese name table is generated from the pinned
+PokéAPI static JSON snapshot. The browser uses only the generated local file
+and makes no runtime request to PokéAPI. Alternate forms and terms absent from
+that snapshot are maintained explicitly in `config/zh-hans-overrides.json`.
 
 Pokémon names, character names, artwork, sounds, and related assets are
 trademarks or copyrighted works of their respective owners. PokémonAI does not

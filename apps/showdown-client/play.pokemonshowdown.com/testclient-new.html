@@ -2,20 +2,22 @@
 <html><head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0" />
-	<title>PokémonAI VGC</title>
+	<title>PokémonAI 对战训练终端</title>
 	<link rel="shortcut icon" href="favicon.ico" id="dynamic-favicon" />
 	<link rel="stylesheet" href="style/battle.css" />
 	<link rel="stylesheet" href="style/client2.css" />
 	<link rel="stylesheet" href="style/utilichart.css" />
 	<link rel="stylesheet" href="style/pokemonai.css" />
+	<link rel="stylesheet" href="style/sim-types.css" />
+	<link rel="stylesheet" href="style/teambuilder.css" />
+	<link rel="stylesheet" href="style/battle-search.css" />
+	<link rel="stylesheet" href="style/font-awesome.css" />
+	<link rel="stylesheet" href="style/pokemonai-swsh.css" />
 	<link rel="manifest" href="manifest.webmanifest" />
 	<meta name="theme-color" content="#20242b" />
 	<meta name="apple-mobile-web-app-capable" content="yes" />
 	<meta name="robots" content="noindex" />
 	<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-	<!--[if lte IE 8]><script>
-		window.Config = {"oldie": true};
-	</script><![endif]-->
 </head><body>
 	<div id="ps-frame">
 		<div id="header" class="header">
@@ -45,102 +47,32 @@
 			</div>
 		</div>
 	</div>
-	<script>
-		function linkStyle(url) {
-			var linkEl = document.createElement('link');
-			linkEl.rel = 'stylesheet';
-			linkEl.href = url;
-			document.head.appendChild(linkEl);
-		}
-		linkStyle("style/sim-types.css");
-		linkStyle("style/teambuilder.css");
-		linkStyle("style/battle-search.css");
-		linkStyle("style/font-awesome.css");
-	</script>
-	<script src="https://play.pokemonshowdown.com/config/config.js"></script>
-	<script>
-		if (!window.Config) {
-			// offline
-			window.Config = {
-				version: '0',
-				bannedHosts: [],
-				whitelist: [],
-				routes: {
-					root: "pokemonshowdown.com",
-					client: "play.pokemonshowdown.com",
-					dex: "dex.pokemonshowdown.com",
-					replays: "replay.pokemonshowdown.com",
-					users: "pokemonshowdown.com/users"
-				},
-				defaultserver: {
-					id: 'showdown',
-					host: 'sim3.psim.us',
-					port: 443,
-					httpport: 8000,
-					altport: 80,
-					registered: true
-				},
-				customcolors: {}
-			};
-		}
-		function loadRemoteData(src) {
-			var scriptEl = document.createElement('script');
-			scriptEl.src = src.replace(/.*\/(data|js)\//g, 'https://play.pokemonshowdown.com/$1/');
-			document.head.appendChild(scriptEl);
-		}
-		Config.testclient = true;
-		Config.pokemonai = true;
-		(function() {
-			if (location.search !== '') {
-				var m = /\?~~(([^:\/]*)(:[0-9]*)?)/.exec(location.search);
-				if (m) {
-					Config.defaultserver = {
-						id: m[1],
-						host: m[2],
-						port: (m[3] && parseInt(m[3].substr(1))) || 8000
-					};
-				} else {
-					alert('Unrecognised query string syntax: ' + location.search);
-				}
-			} else {
-				// Production is served behind Caddy on the same HTTPS origin.
-				// Local development supplies ?~~host:8000 and keeps using plain HTTP.
-				var secure = location.protocol === 'https:';
-				Config.defaultserver = {
-					id: 'pokemonai',
-					host: location.hostname,
-					port: secure ? 443 : 8000,
-					httpport: secure ? 443 : undefined,
-					registered: false
-				};
-			}
-		})();
-	</script>
+	<script src="js/pokemonai-app.js?"></script>
 	<script nomodule src="/js/lib/ps-polyfill.js"></script>
-	<script src="../config/testclient-key.js"></script>
-	<script src="js/client-core.js" onerror="alert('You must build the client with `node build` before using testclient.html')"></script>
+	<script src="js/client-core.js"></script>
 
 	<script src="js/battle-dex-data.js"></script>
 	<script src="js/battle-dex.js"></script>
+	<script src="js/pokemonai-zh-hans-data.js?"></script>
+	<script src="js/pokemonai-i18n.js?"></script>
 	<script src="js/battle-teams.js"></script>
 	<script src="js/battle-text-parser.js"></script>
-	<script src="js/client-main.js?pokemonai-v1-final"></script>
+	<script src="js/client-main.js?"></script>
 	<script nomodule src="js/lib/sockjs-1.4.0-nwjsfix.min.js"></script>
 	<script src="js/client-connection.js"></script>
-	<script> Net.defaultRoute = 'https://play.pokemonshowdown.com'; </script>
 
 	<script src="js/lib/preact.min.js"></script>
 	<script src="js/panels.js"></script>
-	<script src="js/pokemonai-config.js?pokemonai-v1-final"></script>
-	<script src="js/pokemonai.js?pokemonai-v1-final"></script>
-	<script src="js/panel-mainmenu.js?pokemonai-v1-final"></script>
+	<script src="js/pokemonai-config.js?"></script>
+	<script src="js/pokemonai.js?"></script>
+	<script src="js/panel-mainmenu.js?"></script>
 	<script src="js/panel-rooms.js"></script>
 	<script src="js/panel-topbar.js"></script>
 	<!-- at this point, the main view is loaded and usable -->
 
 	<script src="js/lib/html-css-sanitizer-minified.js"></script>
 	<script src="src/battle-log-misc.js"></script>
-	<script src="js/server/chat-formatter.js" onerror="loadRemoteData(this.src)"></script>
+	<script src="js/server/chat-formatter.js"></script>
 	<script src="js/battle-log.js"></script>
 
 	<script src="js/miniedit.js"></script>
@@ -150,26 +82,26 @@
 
 	<script src="js/panel-popups.js"></script>
 	<script src="js/panel-page.js?"></script>
-	<script src="js/panel-resources.js?" onload="console.log('loaded')"></script>
+	<script src="js/panel-resources.js?"></script>
 	<script src="js/panel-ladder.js?"></script>
 
 	<script src="js/battle-sound.js"></script>
 	<script src="js/lib/jquery-2.2.4.min.js"></script>
-	<script src="data/graphics.js" onerror="loadRemoteData(this.src)"></script>
-	<script src="data/text.js" onerror="loadRemoteData(this.src)"></script>
-	<script src="data/text-afd.js" onerror="loadRemoteData(this.src)"></script>
-	<script src="data/commands.js?" onerror="loadRemoteData(this.src)"></script>
+	<script src="data/graphics.js"></script>
+	<script src="data/text.js"></script>
+	<script src="data/text-afd.js"></script>
+	<script src="data/commands.js?"></script>
 	<script src="js/battle-tooltips.js"></script>
 	<script src="js/battle.js"></script>
 	<script src="js/battle-choices.js"></script>
-	<script src="js/panel-battle.js?pokemonai-v1-final"></script>
+	<script src="js/panel-battle.js?"></script>
 
-	<script src="data/pokedex.js" onerror="loadRemoteData(this.src)"></script>
-	<script src="data/moves.js" onerror="loadRemoteData(this.src)"></script>
-	<script src="data/items.js" onerror="loadRemoteData(this.src)"></script>
-	<script src="data/abilities.js" onerror="loadRemoteData(this.src)"></script>
-	<script src="data/search-index.js" onerror="loadRemoteData(this.src)"></script>
-	<script src="data/teambuilder-tables.js" onerror="loadRemoteData(this.src)"></script>
+	<script src="data/pokedex.js"></script>
+	<script src="data/moves.js"></script>
+	<script src="data/items.js"></script>
+	<script src="data/abilities.js"></script>
+	<script src="data/search-index.js"></script>
+	<script src="data/teambuilder-tables.js"></script>
 	<script src="js/panel-teamdropdown.js"></script>
 	<script src="js/panel-teambuilder.js?"></script>
 	<script src="js/battle-dex-search.js?"></script>
@@ -177,20 +109,12 @@
 	<script src="js/battle-team-editor.js?"></script>
 	<script src="js/panel-teambuilder-team.js?"></script>
 
-	<script src="https://play.pokemonshowdown.com/data/pokedex-mini.js"></script>
-	<script src="https://play.pokemonshowdown.com/data/pokedex-mini-bw.js"></script>
-	<script src="data/typechart.js" onerror="loadRemoteData(this.src)"></script>
-	<script src="data/aliases.js" onerror="loadRemoteData(this.src)"></script>
+	<script src="data/pokedex-mini.js"></script>
+	<script src="data/pokedex-mini-bw.js"></script>
+	<script src="data/typechart.js"></script>
+	<script src="data/aliases.js"></script>
 	<script src="js/lib/d3.v3.min.js"></script>
 	<script src="js/lib/color-thief.min.js"></script>
 
 	<script src="js/client-endload.js?"></script>
-
-	<script>
-		if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-			window.addEventListener('load', function () {
-				navigator.serviceWorker.register('/pokemonai-sw.js').catch(function () {});
-			});
-		}
-	</script>
 </body></html>

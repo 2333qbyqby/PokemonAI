@@ -6,6 +6,11 @@ const root = resolve(process.env.POKEMONAI_WEB_ROOT || 'apps/showdown-client/pla
 const host = process.env.POKEMONAI_WEB_BIND || '127.0.0.1';
 const port = Number(process.env.POKEMONAI_WEB_PORT || 8080);
 const showdownPort = Number(process.env.POKEMONAI_SHOWDOWN_PORT || 8000);
+const securityHeaders = {
+  'content-security-policy': "default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:* http://localhost:* ws://localhost:* https://play.pokemonshowdown.com wss://sim3.psim.us; img-src 'self' data: http://play.pokemonshowdown.com http://*.psim.us https://play.pokemonshowdown.com https://*.psim.us https://pokemonshowdown.com; media-src 'self' http://play.pokemonshowdown.com https://play.pokemonshowdown.com; style-src 'self' 'unsafe-inline'; font-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'",
+  'referrer-policy': 'no-referrer',
+  'x-content-type-options': 'nosniff',
+};
 
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
@@ -30,8 +35,11 @@ const server = createServer((request, response) => {
     return;
   }
   if (requestUrl.pathname === '/') {
-    const hostname = requestUrl.hostname || '127.0.0.1';
-    response.writeHead(302, { location: `/testclient-new.html?~~${hostname}:${showdownPort}` });
+    const hostname = (request.headers.host || '127.0.0.1').replace(/:\d+$/, '');
+    const mode = requestUrl.searchParams.get('mode') === 'online' ? 'online' : 'ai';
+    const query = new URLSearchParams({ mode });
+    if (mode === 'ai') query.set('server', `${hostname}:${showdownPort}`);
+    response.writeHead(302, { location: `/testclient-new.html?${query}` });
     response.end();
     return;
   }
@@ -54,6 +62,7 @@ const server = createServer((request, response) => {
     'content-type': contentTypes[extname(candidate)] || 'application/octet-stream',
     // This server is for local development; rebuilds must be visible on reload.
     'cache-control': 'no-cache',
+    ...securityHeaders,
   });
   createReadStream(candidate).pipe(response);
 });

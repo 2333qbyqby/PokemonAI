@@ -236,7 +236,7 @@
         }
       ],
       "fingerprint": "a532493191aea72b1e89847708c9c5fecf4613b9468c2f64faa01dbaf83101ff",
-      "validation_status": "prevalidated",
+      "validation_status": "valid",
       "validation_errors": [],
       "duplicate_sources": []
     },
@@ -474,7 +474,7 @@
         }
       ],
       "fingerprint": "5329d82aec58d7dbf85901601a6121b54fb73ee9adc6b6af0ec6c3e19f25d6e7",
-      "validation_status": "prevalidated",
+      "validation_status": "valid",
       "validation_errors": [],
       "duplicate_sources": []
     },
@@ -713,7 +713,7 @@
         }
       ],
       "fingerprint": "6c4bee6977bba530a94728619f67d0e550951b0f5829ef168dab7a728e2806f3",
-      "validation_status": "prevalidated",
+      "validation_status": "valid",
       "validation_errors": [],
       "duplicate_sources": []
     },
@@ -948,7 +948,7 @@
         }
       ],
       "fingerprint": "360b8519028560a43879ac3271b74dc542048aa6e799a255e128a52a54a46eba",
-      "validation_status": "prevalidated",
+      "validation_status": "valid",
       "validation_errors": [],
       "duplicate_sources": []
     }
