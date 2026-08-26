@@ -14,7 +14,7 @@ Browser / PWA
 - 浏览器只接收格式、对手可用性和公开队伍目录，不接收后端路径、Meta 私有候选或粒子世界。
 - `pokemonai-core` 管理配置、队伍数据、Meta JSON 快照、Arena 和进程状态。
 - `agent-runtime` 每个账号一次只接受配置允许的格式；每场对局固定 Meta 来源日期和队伍。
-- Showdown 是机制与合法性的唯一规则真源。Format Pack 测试会检查最终 RuleTable，而不只比较格式字符串。
+- Showdown 是机制与合法性的唯一规则真源。Format Pack 使用最终 RuleTable，而不只比较格式字符串。
 
 ## 信息边界
 
@@ -54,7 +54,7 @@ Browser / PWA
 
 `DecisionTrace` 包含格式、Meta 来源日期、公开历史哈希、种子、候选分项、Belief 摘要、搜索样本、置信区间、最终动作、回退和耗时。它不包含完整 set、粒子 JSON、SID 或认证信息。
 
-`OfficialGameTransport` 只定义闭队表公开观察、合法行动提交和能力声明，并由公开观察 fixture 验证；当前仓库不包含 Pokémon Champions 主机控制实现。
+`OfficialGameTransport` 只定义闭队表公开观察、合法行动提交和能力声明；当前仓库不包含 Pokémon Champions 主机控制实现。
 
 ## 扩展接口
 

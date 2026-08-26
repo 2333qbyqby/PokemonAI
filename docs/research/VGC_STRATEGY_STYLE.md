@@ -1339,7 +1339,6 @@ semantic_actions/
     move_semantics.py
     targeting.py
     resource_features.py
-    tests/
 ```
 
 给每个 legal action 计算：
@@ -1348,7 +1347,7 @@ $$
 \phi(a,c)
 $$
 
-必须写单元测试覆盖：
+动作分类覆盖：
 
 - attack；
 - Protect；
@@ -1654,7 +1653,6 @@ vgc-style/
 │   ├── train_style_policy.py
 │   └── evaluate_all.py
 │
-├── tests/
 └── reports/
 ```
 

@@ -5,7 +5,7 @@
 ```text
 var/logs          进程、AI 决策和 Showdown 日志
 var/replays       AI 回放
-var/evaluations   Arena 与集成测试结果
+var/evaluations   Arena 运行结果
 var/run           精简实例配置和状态
 var/generated     团队索引与浏览器公开索引
 ```

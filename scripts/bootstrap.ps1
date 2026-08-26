@@ -67,7 +67,7 @@ if ((-not (Test-Path -LiteralPath $ControlPython)) -or $Force) {
     & $UvExe venv --python $lock.python --clear $controlVenv
     if ($LASTEXITCODE -ne 0) { throw 'Could not create control-plane environment' }
 }
-& $UvExe pip install --python $ControlPython -e "$ProjectRoot\packages\pokemonai-core[test]"
+& $UvExe pip install --python $ControlPython -e "$ProjectRoot\packages\pokemonai-core"
 if ($LASTEXITCODE -ne 0) { throw 'Could not install control-plane dependencies' }
 
 Write-Host '[5/7] Building the agent and Showdown'

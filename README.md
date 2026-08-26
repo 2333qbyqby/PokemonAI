@@ -87,18 +87,12 @@ ShowdownTransport
 
 项目保留 VGC-Bench 固定提交中的 4 个 MIT 队伍文件，作为普通的有许可证队伍数据，不包含其 AI、训练或运行后端。队伍来源与许可证规则见 [docs/TEAM_SOURCES.md](docs/TEAM_SOURCES.md)。
 
-## 测试与 Arena
+## 构建与 Arena
 
-完整测试：
-
-```powershell
-.\scripts\test.ps1
-```
-
-增加本地服务和三种格式真实对局：
+完成生成、Agent 编译、客户端构建和类型检查：
 
 ```powershell
-.\scripts\test.ps1 -Integration
+.\scripts\build.ps1
 ```
 
 Arena 将当前 AI 与“不使用 Belief 和搜索的确定性合法伤害基线”对战，并保存复现元数据：

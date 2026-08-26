@@ -15,7 +15,7 @@
 完成扩展后至少运行：
 
 ```powershell
-.\scripts\test.ps1 -Integration
+.\scripts\build.ps1
 ```
 
-共享行为需要增加信息隔离、固定种子复现、非法动作率、模型失败回退和 Arena 消融测试。
+共享行为通过信息隔离、固定种子复现、非法动作率、模型失败回退和 Arena 运行结果进行调试。

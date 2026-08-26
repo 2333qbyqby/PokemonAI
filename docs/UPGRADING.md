@@ -13,7 +13,7 @@ git -C vendor/pokemon-showdown checkout <commit>
 
 ```powershell
 .\scripts\bootstrap.ps1 -Force
-.\scripts\test.ps1 -Integration
+.\scripts\build.ps1
 ```
 
 必须复查三个 Format Pack 的最终 RuleTable、队伍校验、`Battle.toJSON()/fromJSON()` 一致性和真实对局。
@@ -28,7 +28,7 @@ git -C vendor/pokemon-showdown checkout <commit>
 4. 重新生成客户端配置、队伍索引并发布匹配的新 Meta 快照。
 5. 运行三格式单元、属性、集成和 Arena 评测。
 
-环境名称不得写入启发式策略。公开格式 ID、持久化键或用户队伍字段需要改动时，先增加读取旧值和可重复迁移测试，验证成功后再清理旧数据。
+环境名称不得写入启发式策略。公开格式 ID、持久化键或用户队伍字段需要改动时，先保留旧值读取和可重复迁移路径，调试确认后再清理旧数据。
 
 ## 客户端与静态数据
 

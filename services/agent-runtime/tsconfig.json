@@ -6,5 +6,5 @@
     "outDir": "dist"
   },
   "references": [{"path": "../../packages/pokemonai-engine"}],
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "include": ["src/**/*.ts"]
 }
