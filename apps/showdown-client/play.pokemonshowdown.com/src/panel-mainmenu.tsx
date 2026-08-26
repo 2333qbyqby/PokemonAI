@@ -18,13 +18,26 @@ import { TeamBox, type SelectType } from "./panel-teamdropdown";
 import { Dex, toID, type ID } from "./battle-dex";
 import type { Args } from "./battle-text-parser";
 import { BattleLog } from "./battle-log"; // optional
+import { Teams } from "./battle-teams";
 import {
-	challengeOfficialPlayer, challengePokemonAI, getRememberedPokemonAITeam,
-	rememberPokemonAITeam, resumePendingOnlineAction, resumePendingPokemonAIChallenge,
-	startOfficialRandomBattle, switchPokemonAIMode,
+	challengeOfficialPlayer, challengePokemonAI,
+	ensurePokemonAITrainerIdentity, openPokemonAISetup, pokemonAISetupStore,
+	resumePendingOnlineAction, resumePendingPokemonAIChallenge,
+	selectPokemonAIAITeamSettings, selectPokemonAILocalTeam, selectPokemonAISetupFormat,
+	startOfficialRandomBattle, subscribePokemonAISetup,
+	switchPokemonAIMode, type PokemonAITeamMode, type PokemonAITeamSelection,
 } from "./pokemonai";
 import { PokemonAIConfig } from "./pokemonai-config";
 import { PokemonAIApp } from "./pokemonai-app";
+import {
+	openPokemonAILocalTeamEditor, pokemonAILocalTeamStore,
+	type PokemonAILocalTeamRecord,
+} from "./pokemonai/teams";
+import { PokemonAILocalTeamCarousel, type PokemonAILocalTeamCarouselItem } from "./pokemonai/team-carousel";
+import {
+	closePokemonAILayer, focusPokemonAIReturnTarget, getPokemonAITopLayer, navigatePokemonAI, openPokemonAILayer,
+	subscribePokemonAINavigation, type PokemonAIReturnTarget,
+} from "./pokemonai/navigation";
 
 export type RoomInfo = {
 	title: string, id?: RoomID, desc?: string, userCount?: number, section?: string, privacy?: 'hidden',
@@ -134,11 +147,12 @@ export class MainMenuRoom extends PSRoom {
 			const [, challstr] = args;
 			PS.user.challstr = challstr;
 			if (PokemonAIApp.isAI()) {
-				// This deployment intentionally has no account/login-server session.
-				// Do not let an optional upstream upkeep request block guest naming.
+				// Personal training uses an automatic local identity. Showdown still
+				// requires a named protocol user before it can create a battle.
 				PS.user.initializing = false;
 				PS.user.update(null);
 				PS.send('/language simplifiedchinese');
+				ensurePokemonAITrainerIdentity();
 				return;
 			}
 			PokemonAIApp.setOfficialAuthState(PokemonAIApp.hasOfficialSid() ? 'checking' : 'idle');
@@ -789,6 +803,12 @@ class MainMenuPanel extends PSRoomPanel<MainMenuRoom> {
 		const input = form.elements.namedItem('opponent') as HTMLInputElement;
 		challengeOfficialPlayer(input.value, input);
 	};
+	openAISetup = (ev: MouseEvent) => {
+		ev.preventDefault();
+		const target = ev.currentTarget as HTMLElement;
+		const view = target.dataset.view === 'library' ? 'library' : 'setup';
+		openPokemonAISetup(target.dataset.format, view);
+	};
 	renderModeSwitcher() {
 		return <div class="pokemonai-mode-switch" role="group" aria-label="对战模式">
 			<button
@@ -814,36 +834,18 @@ class MainMenuPanel extends PSRoomPanel<MainMenuRoom> {
 		</div>;
 	}
 	renderAIHome() {
-		const vgcCount = PokemonAIConfig.opponents.filter(
-			opponent => opponent.formatId === 'champions-reg-mb'
-		).length;
-		const randomOpponents = PokemonAIConfig.opponents.filter(
-			opponent => opponent.formatId === 'gen9-random'
-		);
+		const state = pokemonAISetupStore.getState();
+		const format = PokemonAIConfig.formats.find(entry => entry.id === state.formatId) || PokemonAIConfig.formats[0];
+		const selected = pokemonAISetupStore.selection(format.id);
 		return <section class="pokemonai-mode-content" aria-labelledby="pokemonai-ai-title">
 			<div class="pokemonai-section-heading">
-				<div><span class="pokemonai-kicker">TRAINING MODE</span>
-					<h2 id="pokemonai-ai-title">选择训练强度</h2></div>
-				<span class="pokemonai-format">VGC 六选四 · 随机单打</span>
+				<div><h2 id="pokemonai-ai-title">AI 训练</h2></div>
 			</div>
-			<div class="pokemonai-vgc-card">
-				<div>
-					<strong><i class="fa fa-th-large" aria-hidden></i> Champions VGC 2026 Reg M-B</strong>
-					<small>{vgcCount} 档难度 · 六选四 · 开放队伍表 · 需要先选择队伍</small>
+			<div class="pokemonai-vgc-card pokemonai-home-resume">
+				<div><strong><i class="fa fa-gamepad" aria-hidden></i> {format.label}</strong>
+					<small>{selected?.name ? `当前队伍：${selected.name}` : '尚未选择出战队伍'}</small>
 				</div>
-				<a class="button" href="ai-battle">选择规则与队伍</a>
-			</div>
-			<div class="pokemonai-difficulty-grid">
-				{randomOpponents.map((opponent, index) => <button
-					class={`pokemonai-difficulty difficulty-${opponent.id}`} value={opponent.id}
-					onClick={ev => challengePokemonAI(opponent, undefined, ev.currentTarget as HTMLButtonElement)}
-					disabled={PS.isOffline}
-				>
-					<span class="difficulty-number">0{index + 1}</span>
-					<strong>{opponent.label}</strong>
-					<small>{opponent.description}</small>
-					<span class="difficulty-action">开始训练 <i class="fa fa-chevron-right" aria-hidden></i></span>
-				</button>)}
+				<a class="button strong" href="ai-battle" data-format={format.id} onClick={this.openAISetup}>进入对战</a>
 			</div>
 		</section>;
 	}
@@ -860,36 +862,15 @@ class MainMenuPanel extends PSRoomPanel<MainMenuRoom> {
 		</div>;
 	}
 	renderOnlineHome() {
-		const searching = !!PS.mainmenu.searchingFormat();
 		return <section class="pokemonai-mode-content online-mode" aria-labelledby="pokemonai-online-title">
 			<div class="pokemonai-section-heading">
-				<div><span class="pokemonai-kicker">ONLINE MODE</span>
-					<h2 id="pokemonai-online-title">官方真人竞技</h2></div>
-				<span class="pokemonai-format">第九世代随机对战</span>
+				<div><h2 id="pokemonai-online-title">真人竞技</h2></div>
 			</div>
 			{this.renderOfficialAuth()}
-			<div class="pokemonai-online-grid">
-				<div class="pokemonai-action-card primary">
-					<span class="card-icon"><i class="fa fa-bolt" aria-hidden></i></span>
-					<h3>快速匹配</h3>
-					<p>在 Pokémon Showdown 官方天梯寻找真人对手。</p>
-					{searching ? <button class="button danger" onClick={this.cancelOnlineSearch}>
-						<i class="fa fa-refresh fa-spin" aria-hidden></i> 取消匹配
-					</button> : <button class="button strong" onClick={this.startOnlineBattle} disabled={PS.isOffline}>
-						开始匹配
-					</button>}
-				</div>
-				<form class="pokemonai-action-card" onSubmit={this.challengeOnlinePlayer}>
-					<span class="card-icon"><i class="fa fa-crosshairs" aria-hidden></i></span>
-					<h3>挑战指定玩家</h3>
-					<p>输入对方的 Showdown 昵称，发送随机对战挑战。</p>
-					<input class="textbox" name="opponent" placeholder="对手昵称" autocomplete="off" />
-					<button class="button strong" type="submit" disabled={PS.isOffline}>发送挑战</button>
-				</form>
+			<div class="pokemonai-vgc-card pokemonai-home-resume">
+				<div><strong><i class="fa fa-globe" aria-hidden></i> 第九世代随机对战</strong><small>快速匹配或挑战指定玩家</small></div>
+				<a class="button strong" href="ai-battle">进入对战</a>
 			</div>
-			<p class="pokemonai-official-fallback">
-				官方服务异常？<a href="https://play.pokemonshowdown.com/" target="_blank" rel="noopener noreferrer">打开官方页面</a>
-			</p>
 		</section>;
 	}
 	renderPokemonAIHome() {
@@ -929,9 +910,11 @@ class MainMenuPanel extends PSRoomPanel<MainMenuRoom> {
 					{Config.pokemonai && <div class="menugroup pokemonai-main-actions">
 						<p><a class={"mainmenu1 mainmenu big button" + (PS.isOffline ? ' disabled' : '')} href="ai-battle">
 							<strong>PokémonAI 对战</strong><br />
-							<small>Champions VGC 与经典随机单打，从休闲到高难度</small>
+							<small>{PokemonAIConfig.formats.map(format => format.label).join('、')}</small>
 						</a></p>
-						<p class="buttonbar"><a class="button" href="ai-teams">
+						<p class="buttonbar"><a
+							class="button" href="ai-battle" data-view="library" onClick={this.openAISetup}
+						>
 							<i class="fa fa-th-large" aria-hidden></i> 阵容库
 						</a></p>
 					</div>}
@@ -977,193 +960,1051 @@ class MainMenuPanel extends PSRoomPanel<MainMenuRoom> {
 	}
 }
 
-class AIBattlePanel extends PSRoomPanel {
-	static readonly id = 'aibattle';
-	static readonly routes = ['ai-battle'];
-	static readonly title = 'PokémonAI 对战';
-	static readonly location = 'modal-popup';
-
-	selectedFormatId: string = PokemonAIConfig.defaultFormat;
-	selectedOpponentId = '';
-
-	selectFormat = (ev: MouseEvent) => {
-		this.selectedFormatId = (ev.currentTarget as HTMLButtonElement).value;
-		this.selectedOpponentId = '';
-		this.forceUpdate();
-	};
-	selectOpponent = (ev: MouseEvent) => {
-		this.selectedOpponentId = (ev.currentTarget as HTMLButtonElement).value;
-		this.forceUpdate();
-	};
-	submitBattle = (ev: Event, _format: string, team?: Team) => {
-		const opponents = PokemonAIConfig.opponents.filter(entry => entry.formatId === this.selectedFormatId);
-		const opponent = opponents.find(entry => entry.id === this.selectedOpponentId) || opponents[0];
-		if (!opponent) return;
-		if (challengePokemonAI(opponent, team, ev.currentTarget as HTMLElement)) PS.closePopup();
-	};
-
-	override render() {
-		const format = PokemonAIConfig.formats.find(entry => entry.id === this.selectedFormatId) ||
-			PokemonAIConfig.formats[0];
-		const opponents = PokemonAIConfig.opponents.filter(entry => entry.formatId === format.id);
-		const selected = opponents.find(entry => entry.id === this.selectedOpponentId) || opponents[0];
-		const rememberedTeam = getRememberedPokemonAITeam(format.id);
-		return <PSPanelWrapper room={this.props.room} width={720}><div class="pad pokemonai-launcher">
-			<div class="pokemonai-launcher-head">
-				<div>
-					<h2>随时和 AI 对战</h2>
-					<p>选择规则与强度。AI 只在合理行动中降低最优程度，不会靠无意义随机放水。</p>
-				</div>
-				<a class="button" href="ai-teams"><i class="fa fa-th-large" aria-hidden></i> 阵容库</a>
-			</div>
-			<h3>1. 规则</h3>
-			<div class="pokemonai-format-grid">
-				{PokemonAIConfig.formats.map(entry => <button
-					key={entry.id}
-					class={`button pokemonai-format-card${entry.id === format.id ? ' cur' : ''}`}
-					value={entry.id} onClick={this.selectFormat}
-				>
-					<strong>{entry.label}</strong><br />
-					<small>{entry.description}</small>
-				</button>)}
-			</div>
-			<h3>2. 难度</h3>
-			<div class="pokemonai-level-grid">
-				{opponents.map(opponent => <button
-					key={opponent.id}
-					class={`button pokemonai-level-card${opponent.id === selected?.id ? ' cur' : ''}`}
-					value={opponent.id} onClick={this.selectOpponent}
-				>
-					<span class="pokemonai-level-number">{opponent.difficulty}</span>
-					<span><strong>{opponent.label}</strong><br /><small>{opponent.description}</small></span>
-				</button>)}
-			</div>
-			<h3>3. 队伍</h3>
-			{format.requiresTeam && rememberedTeam && <p class="pokemonai-selected-team">
-				<i class="fa fa-check-circle" aria-hidden></i>{' 快速对战队伍：'}
-				<strong>{rememberedTeam.name || '阵容库队伍'}</strong>
-			</p>}
-			<TeamForm
-				class="pokemonai-team-form" format={format.showdownFormat} teamFormat={format.showdownFormat}
-				hideFormat selectType="challenge" onSubmit={this.submitBattle}
-				allowEmptyTeam={!!rememberedTeam}
-			>
-				<button class="button big pokemonai-start-button" type="submit" disabled={!selected}>
-					<strong>开始对战</strong><br />
-					<small>{selected ? `${selected.label} · ${format.label}` : '该规则暂无 AI'}</small>
-				</button>
-			</TeamForm>
-			<p class="pokemonai-footnote"><small>
-				VGC 会使用六选四与双首发；机器人离线时，Showdown 会显示挑战失败提示。
-			</small></p>
-		</div></PSPanelWrapper>;
-	}
-}
-
 type PokemonAITeamSummary = {
 	id: string, name: string, format_id: string, source_label: string, source_repository?: string,
 	tags: string[], archetype: string, paste: string, roster: { species_name?: string, species: string }[],
 	validation_status: string, packed: string,
 };
 
+type PokemonAITeamInspection = PokemonAITeamSelection & {
+	sourceLabel: string,
+	validationStatus: string,
+};
+
+type PokemonAIAICapability = {
+	teamCount: number,
+	popularTeamCount: number,
+	modes: Record<PokemonAITeamMode, boolean>,
+};
+
+type PokemonAIAICapabilities = {
+	publishedAt: string | null,
+	formats: Record<string, PokemonAIAICapability>,
+};
+
+type PokemonAIPoolTeam = {
+	id: string,
+	formatId: string,
+	name: string,
+	roster: string[],
+	sourceKind: 'observed' | 'inferred' | 'builtin',
+	battles: number | null,
+};
+
+type PokemonAIPoolTeamDetail = PokemonAIPoolTeam & {
+	packedTeam: string,
+};
+
+const pokemonAITeamModeOptions: readonly { value: PokemonAITeamMode, label: string, icon: string }[] = [
+	{ value: 'mirror', label: '和我相同', icon: 'fa-clone' },
+	{ value: 'counter', label: '克制我的队伍', icon: 'fa-crosshairs' },
+	{ value: 'popular-random', label: '随机热门队伍', icon: 'fa-fire' },
+	{ value: 'generated-random', label: '纯随机', icon: 'fa-random' },
+	{ value: 'fixed', label: '固定队伍', icon: 'fa-thumb-tack' },
+];
+
+function pokemonAITeamModeLabel(mode: PokemonAITeamMode) {
+	return pokemonAITeamModeOptions.find(option => option.value === mode)?.label || '随机热门队伍';
+}
+
 function pokemonAIValidationLabel(status: string) {
-	return ({
-		valid: '已通过规则校验',
-		prevalidated: '已通过基础结构预检',
-		unvalidated: '等待首次启动校验',
-		unclassified: '规则待归类',
-		'invalid-structure': '结构检查未通过',
-		'invalid-showdown': '完整规则校验未通过',
-	}[status] || status);
+	if (pokemonAITeamIsUsable(status)) return '可用';
+	return status.startsWith('invalid') ? '不可用' : '待检查';
 }
 
-function pokemonAIFormatLabel(formatId: string) {
-	return PokemonAIConfig.formats.find(format => format.id === formatId)?.label || formatId;
+function pokemonAITeamIsUsable(status: string) {
+	return status === 'valid' || status === 'prevalidated';
 }
 
-class AITeamLibraryPanel extends PSRoomPanel {
-	static readonly id = 'aiteams';
-	static readonly routes = ['ai-teams'];
-	static readonly title = 'PokémonAI 阵容库';
-	static readonly location = 'modal-popup';
+function pokemonAIRosterFromPacked(packedTeam: string) {
+	if (!packedTeam) return [];
+	try {
+		return Teams.unpackSpeciesOnly(packedTeam).map(species => Dex.species.get(species).name || species);
+	} catch {
+		return [];
+	}
+}
 
-	teams: PokemonAITeamSummary[] | null = null;
-	error = '';
-	formatFilter = 'all';
+/* eslint-disable no-restricted-syntax, no-restricted-globals, @stylistic/max-len, @stylistic/indent, @typescript-eslint/no-misused-promises */
+class AISetupPanel extends PSRoomPanel {
+	static readonly id = 'aibattle';
+	static readonly routes = ['ai-battle'];
+	static readonly title = 'PokémonAI 对战准备';
+	static readonly location = 'left';
+
+	catalogTeams: PokemonAITeamSummary[] | null = null;
+	catalogError = '';
+	inspectedTeam: PokemonAITeamInspection | null = null;
+	activeLocalTeamIds: Record<string, string> = {};
+	aiCapabilities: PokemonAIAICapabilities | null = null;
+	aiCapabilitiesError = '';
+	selectingAITeam = false;
+	aiPoolTeams: PokemonAIPoolTeam[] | null = null;
+	aiPoolError = '';
+	aiPoolQuery = '';
+	aiPoolDraftQuery = '';
+	aiPoolPage = 1;
+	aiPoolTotal = 0;
+	aiPoolRequest = 0;
+	aiPoolDetail: PokemonAIPoolTeamDetail | null = null;
+	aiPoolDetailLoading = false;
+	unsubscribeSetup: (() => void) | null = null;
+	unsubscribeLocal: (() => void) | null = null;
+	unsubscribeNavigation: (() => void) | null = null;
+	teamPickerView: 'local' | 'catalog' = 'local';
+	catalogReady = () => this.forceUpdate();
+	returnTargetReady = (event: Event) => {
+		const target = (event as CustomEvent<PokemonAIReturnTarget>).detail;
+		if (target.roomid !== 'ai-battle' || target.args?.openTeamPicker !== true) return;
+		this.teamPickerView = target.args.teamPickerView === 'catalog' ? 'catalog' : 'local';
+		openPokemonAILayer('team-picker', 'ai-battle' as RoomID, { view: this.teamPickerView });
+	};
 
 	override componentDidMount() {
-		Net(PokemonAIConfig.teamLibraryUrl).get().then(text => {
-			const data = JSON.parse(text) as { teams?: PokemonAITeamSummary[] };
-			this.teams = Array.isArray(data?.teams) ? data.teams : [];
+		super.componentDidMount();
+		this.subscribeTo(PS.teams);
+		this.unsubscribeSetup = subscribePokemonAISetup(() => this.forceUpdate());
+		this.unsubscribeLocal = pokemonAILocalTeamStore.subscribe(() => this.forceUpdate());
+		this.unsubscribeNavigation = subscribePokemonAINavigation(() => {
+			if (getPokemonAITopLayer('ai-battle' as RoomID)?.kind !== 'team-detail') this.inspectedTeam = null;
 			this.forceUpdate();
-		}).catch(error => {
-			this.error = String(error?.message || error);
+		});
+		window.addEventListener('pokemonai-catalog-ready', this.catalogReady);
+		window.addEventListener('pokemonai-return-target', this.returnTargetReady);
+		void this.loadAICapabilities();
+	}
+	override componentWillUnmount() {
+		this.unsubscribeSetup?.();
+		this.unsubscribeLocal?.();
+		this.unsubscribeNavigation?.();
+		window.removeEventListener('pokemonai-catalog-ready', this.catalogReady);
+		window.removeEventListener('pokemonai-return-target', this.returnTargetReady);
+		super.componentWillUnmount();
+	}
+	loadCatalog() {
+		const endpoints = [PokemonAIConfig.teamLibraryUrl, '/api/meta/teams'].map(
+			url => new URL(url, document.location.origin).href
+		);
+		const requests = endpoints.map(endpoint => Net(endpoint).get().then(text => {
+			const data = JSON.parse(text) as { teams?: PokemonAITeamSummary[] };
+			return { teams: Array.isArray(data?.teams) ? data.teams : [], error: '' };
+		}, error => ({ teams: [] as PokemonAITeamSummary[], error: String(error?.message || error) })));
+		Promise.all(requests).then(results => {
+			const teams: Record<string, PokemonAITeamSummary> = {};
+			for (const result of results) {
+				for (const team of result.teams) teams[team.id] = team;
+			}
+			this.catalogTeams = Object.values(teams);
+			this.catalogError = this.catalogTeams.length ? '' : results.map(result => result.error).filter(Boolean).join('；');
 			this.forceUpdate();
 		});
 	}
-	changeFormat = (ev: Event) => {
-		this.formatFilter = (ev.currentTarget as HTMLSelectElement).value;
+	selectFormat = (ev: MouseEvent) => {
+		this.inspectedTeam = null;
+		this.selectingAITeam = false;
+		selectPokemonAISetupFormat((ev.currentTarget as HTMLButtonElement).value);
 		this.forceUpdate();
 	};
-	useTeam = (ev: MouseEvent) => {
+	async loadAICapabilities() {
+		try {
+			const response = await fetch('/api/ai/capabilities', { cache: 'no-store' });
+			if (!response.ok) throw new Error(`HTTP ${response.status}`);
+			this.aiCapabilities = await response.json() as PokemonAIAICapabilities;
+			this.aiCapabilitiesError = '';
+		} catch (error) {
+			this.aiCapabilitiesError = error instanceof Error ? error.message : String(error);
+		} finally {
+			this.forceUpdate();
+		}
+	}
+	selectAITeamMode = (ev: MouseEvent) => {
+		const mode = (ev.currentTarget as HTMLButtonElement).value as PokemonAITeamMode;
+		const state = pokemonAISetupStore.getState();
+		selectPokemonAIAITeamSettings(state.formatId, { ...pokemonAISetupStore.getAITeamSettings(state.formatId), mode });
+	};
+	openAITeamPool = () => {
+		this.selectingAITeam = true;
+		this.aiPoolPage = 1;
+		this.aiPoolQuery = '';
+		this.aiPoolDraftQuery = '';
+		this.aiPoolDetail = null;
+		void this.loadAITeamPool();
+		this.forceUpdate();
+	};
+	closeAITeamPool = () => {
+		this.selectingAITeam = false;
+		this.aiPoolRequest++;
+		this.aiPoolDetail = null;
+		this.forceUpdate();
+	};
+	async loadAITeamPool() {
+		const request = ++this.aiPoolRequest;
+		const formatId = pokemonAISetupStore.getState().formatId;
+		this.aiPoolTeams = null;
+		this.aiPoolDetail = null;
+		this.aiPoolError = '';
+		this.forceUpdate();
+		const params = new URLSearchParams({
+			format_id: formatId,
+			query: this.aiPoolQuery,
+			cursor: String((this.aiPoolPage - 1) * 20),
+			limit: '20',
+		});
+		try {
+			const response = await fetch(`/api/ai/team-pool?${params}`, { cache: 'no-store' });
+			const result = await response.json() as { teams?: PokemonAIPoolTeam[], total?: number, error?: string };
+			if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+			if (request !== this.aiPoolRequest) return;
+			this.aiPoolTeams = result.teams || [];
+			this.aiPoolTotal = Number(result.total || 0);
+		} catch (error) {
+			if (request !== this.aiPoolRequest) return;
+			this.aiPoolTeams = [];
+			this.aiPoolError = error instanceof Error ? error.message : String(error);
+		} finally {
+			if (request === this.aiPoolRequest) this.forceUpdate();
+		}
+	}
+	updateAIPoolQuery = (ev: Event) => {
+		this.aiPoolDraftQuery = (ev.currentTarget as HTMLInputElement).value;
+	};
+	searchAITeamPool = (ev: Event) => {
+		ev.preventDefault();
+		this.aiPoolQuery = this.aiPoolDraftQuery.trim();
+		this.aiPoolPage = 1;
+		void this.loadAITeamPool();
+	};
+	moveAITeamPoolPage = (ev: MouseEvent) => {
+		const direction = Number((ev.currentTarget as HTMLButtonElement).value);
+		const pages = Math.max(1, Math.ceil(this.aiPoolTotal / 20));
+		this.aiPoolPage = Math.max(1, Math.min(pages, this.aiPoolPage + direction));
+		void this.loadAITeamPool();
+	};
+	inspectAITeam = async (ev: MouseEvent) => {
 		const id = (ev.currentTarget as HTMLButtonElement).value;
-		const team = this.teams?.find(entry => entry.id === id);
-		if (!team?.packed) return;
-		rememberPokemonAITeam(team.format_id, team.packed, team.name);
-		PS.alert(`已将“${team.name}”设为 ${pokemonAIFormatLabel(team.format_id)} 的快速对战队伍。`, {
-			parentElem: ev.currentTarget as HTMLElement,
+		this.aiPoolDetailLoading = true;
+		this.forceUpdate();
+		try {
+			const response = await fetch(`/api/ai/team-pool/${encodeURIComponent(id)}`, { cache: 'no-store' });
+			const result = await response.json() as PokemonAIPoolTeamDetail & { error?: string };
+			if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+			this.aiPoolDetail = result;
+			this.aiPoolError = '';
+		} catch (error) {
+			this.aiPoolError = error instanceof Error ? error.message : String(error);
+		} finally {
+			this.aiPoolDetailLoading = false;
+			this.forceUpdate();
+		}
+	};
+	closeAITeamDetail = () => {
+		this.aiPoolDetail = null;
+		this.forceUpdate();
+	};
+	selectFixedAITeam = (ev: MouseEvent) => {
+		const id = (ev.currentTarget as HTMLButtonElement).value;
+		const team = this.aiPoolTeams?.find(entry => entry.id === id) || (this.aiPoolDetail?.id === id ? this.aiPoolDetail : null);
+		if (!team) return;
+		const formatId = pokemonAISetupStore.getState().formatId;
+		selectPokemonAIAITeamSettings(formatId, { mode: 'fixed', fixedTeamId: team.id, fixedTeamName: team.name });
+		this.closeAITeamPool();
+	};
+	openTeamPicker = (view: 'local' | 'catalog') => {
+		this.teamPickerView = view;
+		if (view === 'catalog' && !this.catalogTeams && !this.catalogError) this.loadCatalog();
+		openPokemonAILayer('team-picker', 'ai-battle' as RoomID, { view });
+		this.forceUpdate();
+	};
+	openLocalTeams = () => {
+		this.openTeamPicker('local');
+	};
+	openCatalogTeams = () => {
+		this.openTeamPicker('catalog');
+	};
+	closeTeamPicker = () => closePokemonAILayer('ai-battle' as RoomID);
+	showLocalPicker = () => { this.teamPickerView = 'local'; this.inspectedTeam = null; this.forceUpdate(); };
+	showCatalogPicker = () => {
+		this.teamPickerView = 'catalog';
+		this.inspectedTeam = null;
+		if (!this.catalogTeams && !this.catalogError) this.loadCatalog();
+		this.forceUpdate();
+	};
+	manageAllTeams = () => { void navigatePokemonAI('teams', { args: { view: this.teamPickerView } }); };
+	showTeamSource = (ev: MouseEvent) => {
+		this.inspectedTeam = null;
+		pokemonAISetupStore.setView((ev.currentTarget as HTMLButtonElement).value === 'catalog' ? 'library' : 'setup');
+		this.forceUpdate();
+	};
+	setupLocalTeams(formatId: string) {
+		const format = PokemonAIConfig.formats.find(entry => entry.id === formatId) || PokemonAIConfig.formats[0];
+		const localFormat = PS.teams.teambuilderFormat(format.showdownFormat);
+		return pokemonAILocalTeamStore.list().filter(team => (
+			team.kind === 'team' && team.validation.status !== 'invalid' &&
+			PS.teams.teambuilderFormat(team.formatId) === localFormat && pokemonAIRosterFromPacked(team.packedTeam).length === 6
+		));
+	}
+
+	activeSetupLocalTeam(formatId: string, teams: PokemonAILocalTeamRecord[], selected: PokemonAITeamSelection | null) {
+		let activeId = this.activeLocalTeamIds[formatId];
+		if (!teams.some(team => team.id === activeId)) {
+			activeId = teams.find(team => team.id === selected?.localTeamId)?.id || teams[0]?.id || '';
+			this.activeLocalTeamIds[formatId] = activeId;
+		}
+		return teams.find(team => team.id === activeId) || null;
+	}
+
+	setupCarouselItems(
+		formatId: string, teams: PokemonAILocalTeamRecord[], selected: PokemonAITeamSelection | null
+	): PokemonAILocalTeamCarouselItem[] {
+		const format = PokemonAIConfig.formats.find(entry => entry.id === formatId) || PokemonAIConfig.formats[0];
+		return teams.map(team => ({
+			id: team.id,
+			name: team.name,
+			formatLabel: format.label,
+			notes: team.notes,
+			validationStatus: team.validation.status,
+			validationLabel: team.validation.status === 'valid' ? '可出战' : '待检查',
+			roster: pokemonAIRosterFromPacked(team.packedTeam).map(species => ({ species: toID(species), displayName: species })),
+			isBattleTeam: selected?.localTeamId === team.id,
+		}));
+	}
+
+	browseLocalTeam = (id: string) => {
+		const formatId = pokemonAISetupStore.getState().formatId;
+		this.activeLocalTeamIds[formatId] = id;
+		this.inspectedTeam = null;
+		this.forceUpdate();
+	};
+
+	localInspection(record: PokemonAILocalTeamRecord, formatId: string): PokemonAITeamInspection {
+		return {
+			formatId, source: 'showdown', key: record.id, localTeamId: record.id,
+			name: record.name, packedTeam: record.packedTeam,
+			sourceLabel: '本地队伍', validationStatus: record.validation.status,
+		};
+	}
+	localizeCatalogTeam(source: PokemonAITeamSelection) {
+		if (!source.packedTeam) return null;
+		const format = PokemonAIConfig.formats.find(entry => entry.id === source.formatId);
+		if (!format) return null;
+		const localFormat = PS.teams.teambuilderFormat(format.showdownFormat);
+		const existing = pokemonAILocalTeamStore.list().find(record => (
+			record.formatId === localFormat && record.packedTeam === source.packedTeam && record.kind === 'team'
+		));
+		if (existing) return existing;
+		const record = pokemonAILocalTeamStore.create({
+			name: source.name, formatId: localFormat, notes: '', packedTeam: source.packedTeam,
+		});
+		return pokemonAILocalTeamStore.update(record.id, {
+			validation: { status: 'valid', checkedAt: new Date().toISOString(), errors: [] },
+		}) || record;
+	}
+	selectCatalogTeam = (ev: MouseEvent) => {
+		const team = this.catalogTeams?.find(entry => entry.id === (ev.currentTarget as HTMLButtonElement).value);
+		if (!team?.packed || !pokemonAITeamIsUsable(team.validation_status)) return;
+		const source: PokemonAITeamSelection = {
+			formatId: team.format_id,
+			source: 'catalog', key: team.id, name: team.name, packedTeam: team.packed,
+		};
+		const local = this.localizeCatalogTeam(source);
+		if (!local) return;
+		selectPokemonAILocalTeam(team.format_id, local.id);
+		this.activeLocalTeamIds[team.format_id] = local.id;
+		if (getPokemonAITopLayer('ai-battle' as RoomID)?.kind === 'team-picker') this.closeTeamPicker();
+		this.forceUpdate();
+	};
+	selectPickerLocal = (ev: MouseEvent) => {
+		const record = pokemonAILocalTeamStore.get((ev.currentTarget as HTMLButtonElement).value);
+		const formatId = pokemonAISetupStore.getState().formatId;
+		if (!record || record.validation.status === 'invalid') return;
+		selectPokemonAILocalTeam(formatId, record.id);
+		this.activeLocalTeamIds[formatId] = record.id;
+		this.closeTeamPicker();
+	};
+	showTeamDetails(team: PokemonAITeamInspection) {
+		this.inspectedTeam = team;
+		if (getPokemonAITopLayer('ai-battle' as RoomID)?.kind === 'team-picker') {
+			openPokemonAILayer('team-detail', 'ai-battle' as RoomID, { teamId: team.key });
+		}
+		this.forceUpdate();
+		if (this.props.room.width < 900) {
+			setTimeout(() => this.base?.querySelector('.pokemonai-team-summary')?.scrollIntoView({ block: 'start' }), 0);
+		}
+	}
+	inspectCatalogTeam = (ev: MouseEvent) => {
+		const team = this.catalogTeams?.find(entry => entry.id === (ev.currentTarget as HTMLButtonElement).value);
+		if (!team?.packed || !pokemonAITeamIsUsable(team.validation_status)) return;
+		this.showTeamDetails({
+			formatId: team.format_id,
+			source: 'catalog', key: team.id, name: team.name, packedTeam: team.packed,
+			sourceLabel: team.source_label, validationStatus: team.validation_status,
 		});
 	};
-	copyTeam = (ev: MouseEvent) => {
-		const id = (ev.currentTarget as HTMLButtonElement).value;
-		const team = this.teams?.find(entry => entry.id === id);
-		if (!team) return;
-		if (!navigator.clipboard?.writeText) {
-			PS.alert(team.paste, { width: 600, parentElem: ev.currentTarget as HTMLElement });
+	inspectActiveTeam = () => {
+		const state = pokemonAISetupStore.getState();
+		const selected = pokemonAISetupStore.selection(state.formatId);
+		const record = this.activeSetupLocalTeam(state.formatId, this.setupLocalTeams(state.formatId), selected);
+		if (record) this.showTeamDetails(this.localInspection(record, state.formatId));
+	};
+	closeTeamDetails = () => {
+		const inspectedKey = this.inspectedTeam?.key;
+		this.inspectedTeam = null;
+		if (getPokemonAITopLayer('ai-battle' as RoomID)?.kind === 'team-detail') closePokemonAILayer('ai-battle' as RoomID);
+		this.forceUpdate();
+		if (inspectedKey) setTimeout(() => this.base?.querySelector<HTMLElement>(
+			`[data-carousel-id="${CSS.escape(inspectedKey)}"] .pokemonai-carousel-card-button`
+		)?.focus(), 0);
+	};
+	selectInspectedTeam = () => {
+		if (!this.inspectedTeam) return;
+		if (this.inspectedTeam.localTeamId) {
+			selectPokemonAILocalTeam(this.inspectedTeam.formatId, this.inspectedTeam.localTeamId);
+		} else if (this.inspectedTeam.packedTeam) {
+			const local = this.localizeCatalogTeam({
+				formatId: this.inspectedTeam.formatId, source: 'catalog', key: this.inspectedTeam.key,
+				name: this.inspectedTeam.name, packedTeam: this.inspectedTeam.packedTeam,
+			});
+			if (local) selectPokemonAILocalTeam(this.inspectedTeam.formatId, local.id);
+		}
+		if (getPokemonAITopLayer('ai-battle' as RoomID)?.kind === 'team-detail') history.go(-2);
+		this.forceUpdate();
+	};
+	selectActiveTeam = () => {
+		const state = pokemonAISetupStore.getState();
+		const selected = pokemonAISetupStore.selection(state.formatId);
+		const record = this.activeSetupLocalTeam(state.formatId, this.setupLocalTeams(state.formatId), selected);
+		if (!record) return;
+		selectPokemonAILocalTeam(state.formatId, record.id);
+		this.forceUpdate();
+	};
+	editActiveTeam = () => {
+		const state = pokemonAISetupStore.getState();
+		const selected = pokemonAISetupStore.selection(state.formatId);
+		const record = this.activeSetupLocalTeam(state.formatId, this.setupLocalTeams(state.formatId), selected);
+		if (!record) return;
+		this.openTeamPicker('local');
+		setTimeout(() => openPokemonAILocalTeamEditor(record.id, this.teamEditorReturnTarget('local')), 0);
+	};
+	teamEditorReturnTarget(view: 'local' | 'catalog'): PokemonAIReturnTarget {
+		return {
+			roomid: 'ai-battle' as RoomID,
+			args: { openTeamPicker: true, teamPickerView: view, formatId: pokemonAISetupStore.getState().formatId },
+			historyBack: true,
+		};
+	}
+	openTeamEditor(team: Team) {
+		const roomid = `team-${team.key}` as RoomID;
+		if (PS.rooms[roomid]) PS.rooms[roomid].args = { ...PS.rooms[roomid].args, pokemonAIReturn: true };
+		PS.join(roomid, { args: { pokemonAIReturn: true } });
+	}
+	editLocalTeam = (ev: MouseEvent) => {
+		const key = (ev.currentTarget as HTMLButtonElement).value;
+		if (pokemonAILocalTeamStore.get(key)) openPokemonAILocalTeamEditor(key, this.teamEditorReturnTarget('local'));
+	};
+	copyCatalogTeamToEditor(source: PokemonAITeamSelection) {
+		const record = this.localizeCatalogTeam(source);
+		if (!record) return;
+		openPokemonAILocalTeamEditor(record.id, this.teamEditorReturnTarget('catalog'));
+	}
+	editCatalogTeam = (ev: MouseEvent) => {
+		const source = this.catalogTeams?.find(entry => entry.id === (ev.currentTarget as HTMLButtonElement).value);
+		if (!source?.packed) return;
+		this.copyCatalogTeamToEditor({
+			formatId: source.format_id, source: 'catalog', key: source.id,
+			name: source.name, packedTeam: source.packed,
+		});
+	};
+	editInspectedTeam = () => {
+		const inspected = this.inspectedTeam;
+		if (!inspected) return;
+		if (inspected.source === 'showdown' && inspected.localTeamId) {
+			const open = () => openPokemonAILocalTeamEditor(
+				inspected.localTeamId!, this.teamEditorReturnTarget(this.teamPickerView)
+			);
+			if (getPokemonAITopLayer('ai-battle' as RoomID)?.kind === 'team-detail') {
+				closePokemonAILayer('ai-battle' as RoomID);
+				setTimeout(open, 0);
+			} else {
+				open();
+			}
 			return;
 		}
-		const copyOperation = navigator.clipboard.writeText(team.paste);
-		copyOperation.then(() => {
-			PS.alert('已复制 Showdown 队伍文本。可在 Teambuilder 中导入。', { parentElem: ev.currentTarget as HTMLElement });
-		}).catch(() => {
-			PS.alert(team.paste, { width: 600, parentElem: ev.currentTarget as HTMLElement });
+		if (getPokemonAITopLayer('ai-battle' as RoomID)?.kind === 'team-detail') {
+			closePokemonAILayer('ai-battle' as RoomID);
+			setTimeout(() => this.copyCatalogTeamToEditor(inspected), 0);
+		} else {
+			this.copyCatalogTeamToEditor(inspected);
+		}
+	};
+	startBattle = (ev: MouseEvent) => {
+		const state = pokemonAISetupStore.getState();
+		const opponent = PokemonAIConfig.opponents.find(entry => entry.formatId === state.formatId);
+		const selection = pokemonAISetupStore.selection(state.formatId);
+		if (!opponent) return;
+		challengePokemonAI(opponent, selection || undefined, ev.currentTarget as HTMLElement);
+	};
+	startOnlineBattle = (ev: MouseEvent) => {
+		startOfficialRandomBattle(ev.currentTarget as HTMLElement);
+	};
+	cancelOnlineSearch = () => PS.mainmenu.cancelSearch();
+	challengeOnlinePlayer = (ev: Event) => {
+		ev.preventDefault();
+		const form = ev.currentTarget as HTMLFormElement;
+		const input = form.elements.namedItem('opponent') as HTMLInputElement;
+		challengeOfficialPlayer(input.value, input);
+	};
+	renderOnlineSetup() {
+		const searching = !!PS.mainmenu.searchingFormat();
+		const hasSid = PokemonAIApp.hasOfficialSid();
+		const authState = PokemonAIApp.officialAuthState;
+		let accountDetail = hasSid ? '设备授权已保存，正在验证官方账号。' : '可使用游客昵称，也可以授权已有账号。';
+		if (authState === 'authenticated') accountDetail = `已授权账号：${PS.user.registered?.name || PS.user.name}`;
+		if (authState === 'invalid') accountDetail = '设备授权已失效，请重新授权。';
+		if (authState === 'network-error') accountDetail = '暂时无法验证授权，请检查网络后重试。';
+		return <PSPanelWrapper room={this.props.room}><main class="pokemonai-workspace pokemonai-online-setup">
+			<header class="pokemonai-page-header">
+				<div><h2>真人对战</h2><p>第九世代随机对战</p></div>
+				<a class="button" href="official-account"><i class="fa fa-user-circle" aria-hidden></i> 账号授权</a>
+			</header>
+			<div class={`pokemonai-account-card auth-${authState}`}>
+				<div><strong><i class="fa fa-shield" aria-hidden></i> 官方账号</strong><small>{accountDetail}</small></div>
+				<a class="button" href="official-account">{hasSid ? '管理授权' : '授权账号'}</a>
+			</div>
+			<div class="pokemonai-online-grid">
+				<section class="pokemonai-action-card primary">
+					<span class="card-icon"><i class="fa fa-bolt" aria-hidden></i></span>
+					<h3>快速匹配</h3>
+					<p>在 Pokémon Showdown 官方天梯寻找真人对手。</p>
+					{searching ? <button class="button danger" onClick={this.cancelOnlineSearch}>
+						<i class="fa fa-refresh fa-spin" aria-hidden></i> 取消匹配
+					</button> : <button class="button strong" onClick={this.startOnlineBattle} disabled={PS.isOffline}>开始匹配</button>}
+				</section>
+				<form class="pokemonai-action-card" onSubmit={this.challengeOnlinePlayer}>
+					<span class="card-icon"><i class="fa fa-crosshairs" aria-hidden></i></span>
+					<h3>挑战指定玩家</h3>
+					<p>输入对方的 Showdown 昵称并发送挑战。</p>
+					<input class="textbox" name="opponent" placeholder="对手昵称" autocomplete="off" />
+					<button class="button strong" type="submit" disabled={PS.isOffline}>发送挑战</button>
+				</form>
+			</div>
+		</main></PSPanelWrapper>;
+	}
+	renderRoster(roster: string[]) {
+		return <div class="pokemonai-roster">{roster.slice(0, 6).map((species, index) => <span key={`${species}-${index}`}>
+			{species}
+		</span>)}</div>;
+	}
+	renderTeamDetails(team: PokemonAITeamInspection, selected: PokemonAITeamSelection | null) {
+		let sets: Teams.PokemonSet[] = [];
+		try {
+			sets = Teams.unpack(team.packedTeam);
+		} catch {}
+		const isSelected = !!team.localTeamId && selected?.localTeamId === team.localTeamId;
+		const statLabels = { hp: 'HP', atk: '攻击', def: '防御', spa: '特攻', spd: '特防', spe: '速度' } as const;
+		return <>
+			<div class="pokemonai-detail-heading">
+				<button class="button icon" onClick={this.closeTeamDetails} title="返回" aria-label="返回出战队伍">
+					<i class="fa fa-arrow-left" aria-hidden></i>
+				</button>
+				<div><h3>阵容详情</h3><p>{team.name}</p></div>
+			</div>
+			<p class="pokemonai-detail-source">{team.sourceLabel} · {pokemonAIValidationLabel(team.validationStatus)}</p>
+			<div class="pokemonai-set-list">{sets.map((set, index) => {
+				const species = Dex.species.get(set.species).name || set.species;
+				const stats = Object.entries(set.evs || {}).filter((entry): entry is [keyof typeof statLabels, number] => (
+					entry[0] in statLabels && typeof entry[1] === 'number' && entry[1] > 0
+				)).map(([stat, value]) => `${statLabels[stat]} ${value}`).join(' / ');
+				return <section class="pokemonai-set-detail" key={`${species}-${index}`}>
+					<header><strong>{species}</strong>{set.item && <span>{set.item}</span>}</header>
+					{(set.ability || set.nature || set.teraType) && <p>{[
+						set.ability, set.nature && `${set.nature}性格`, set.teraType && `太晶 ${set.teraType}`,
+					].filter(Boolean).join(' · ')}</p>}
+					{stats && <p>{stats}</p>}
+					<ul>{set.moves.map(move => <li key={move}>{Dex.moves.get(move).name || move}</li>)}</ul>
+				</section>;
+			})}</div>
+			{!sets.length && <p class="pokemonai-summary-empty">无法读取这支队伍的详细配置。</p>}
+			<div class="pokemonai-detail-actions">
+				{!isSelected && <button class="button strong" onClick={this.selectInspectedTeam}>
+					<i class="fa fa-check" aria-hidden></i> 设为出战队伍
+				</button>}
+				<button class="button" onClick={this.editInspectedTeam}>
+					<i class="fa fa-pencil" aria-hidden></i> {team.source === 'catalog' ? '复制并编辑' : '编辑'}
+				</button>
+			</div>
+		</>;
+	}
+	renderLocalTeams(formatId: string, selected: PokemonAITeamSelection | null) {
+		const teams = this.setupLocalTeams(formatId);
+		if (!teams.length) return <div class="pokemonai-empty-state">
+			<p>这个规则下还没有本地队伍。</p>
+			<button class="button strong" onClick={this.openLocalTeams}><i class="fa fa-plus" aria-hidden></i> 新建本地队伍</button>
+		</div>;
+		const active = this.activeSetupLocalTeam(formatId, teams, selected);
+		return <PokemonAILocalTeamCarousel
+			items={this.setupCarouselItems(formatId, teams, selected)} activeId={active?.id || null}
+			label="当前规则的本地队伍" onActiveChange={this.browseLocalTeam}
+		/>;
+	}
+	renderAITeamSettings(formatId: string) {
+		const settings = pokemonAISetupStore.getAITeamSettings(formatId);
+		const capability = this.aiCapabilities?.formats[formatId];
+		return <section class="pokemonai-ai-team-settings" aria-labelledby="pokemonai-ai-team-heading">
+			<div class="pokemonai-section-bar"><h3 id="pokemonai-ai-team-heading">AI 队伍</h3></div>
+			<div class="pokemonai-ai-mode-grid" role="radiogroup" aria-label="选择 AI 队伍方式">
+				{pokemonAITeamModeOptions.map(option => {
+					const selected = settings.mode === option.value;
+					const disabled = capability?.modes[option.value] === false;
+					return <button
+						class={selected ? 'cur' : ''} value={option.value} onClick={this.selectAITeamMode}
+						role="radio" aria-checked={selected} disabled={disabled} key={option.value}
+					>
+						<i class={`fa ${option.icon}`} aria-hidden></i><span>{option.label}</span>
+					</button>;
+				})}
+			</div>
+			{settings.mode === 'fixed' && <div class="pokemonai-fixed-team-row">
+				<span>{settings.fixedTeamName || '尚未选择 AI 队伍'}</span>
+				<button class="button" onClick={this.openAITeamPool} disabled={capability?.modes.fixed === false}>
+					<i class="fa fa-list" aria-hidden></i> 选择队伍
+				</button>
+			</div>}
+			{this.aiCapabilitiesError && <p class="message-error">AI 队伍暂时无法读取。</p>}
+		</section>;
+	}
+	renderAITeamPoolDetail(team: PokemonAIPoolTeamDetail, format: (typeof PokemonAIConfig.formats)[number]) {
+		let sets: Teams.PokemonSet[] = [];
+		try {
+			sets = Teams.unpack(team.packedTeam);
+		} catch {}
+		const statLabels = { hp: 'HP', atk: '攻击', def: '防御', spa: '特攻', spd: '特防', spe: '速度' } as const;
+		return <section class="pokemonai-ai-pool-detail" aria-labelledby="pokemonai-ai-pool-detail-heading">
+			<div class="pokemonai-detail-heading">
+				<button class="button icon" onClick={this.closeAITeamDetail} title="返回" aria-label="返回 AI 队伍列表">
+					<i class="fa fa-arrow-left" aria-hidden></i>
+				</button>
+				<div><h3 id="pokemonai-ai-pool-detail-heading">{team.name}</h3><p>{format.label}</p></div>
+			</div>
+			<div class="pokemonai-ai-set-grid">{sets.map((set, index) => {
+				const species = Dex.species.get(set.species).name || set.species;
+				const stats = Object.entries(set.evs || {}).filter((entry): entry is [keyof typeof statLabels, number] => (
+					entry[0] in statLabels && typeof entry[1] === 'number' && entry[1] > 0
+				)).map(([stat, value]) => `${statLabels[stat]} ${value}`).join(' / ');
+				return <article class="pokemonai-ai-set" key={`${species}-${index}`}>
+					<header>
+						<span class="picon" style={Dex.getPokemonIcon(toID(species))} aria-hidden></span>
+						<div><strong>{species}</strong><small>{set.item || '无道具'}</small></div>
+					</header>
+					<p>{[set.ability, set.nature && `${set.nature}性格`, set.teraType && `太晶 ${set.teraType}`].filter(Boolean).join(' · ')}</p>
+					{stats && <p>{stats}</p>}
+					<ul>{set.moves.map(move => <li key={move}>{Dex.moves.get(move).name || move}</li>)}</ul>
+				</article>;
+			})}</div>
+			{!sets.length && <p class="pokemonai-summary-empty">无法读取这支队伍的详细配置。</p>}
+			<div class="pokemonai-ai-pool-detail-actions">
+				<button class="button strong" value={team.id} onClick={this.selectFixedAITeam}>
+					<i class="fa fa-check" aria-hidden></i> 选择这支队伍
+				</button>
+			</div>
+		</section>;
+	}
+	renderAITeamPool(format: (typeof PokemonAIConfig.formats)[number]) {
+		const settings = pokemonAISetupStore.getAITeamSettings(format.id);
+		const pages = Math.max(1, Math.ceil(this.aiPoolTotal / 20));
+		return <PSPanelWrapper room={this.props.room}><main class="pokemonai-workspace pokemonai-ai-pool">
+			<header class="pokemonai-page-header">
+				<div class="pokemonai-detail-heading">
+					{!this.aiPoolDetail && <button class="button icon" onClick={this.closeAITeamPool} title="返回" aria-label="返回对战准备">
+						<i class="fa fa-arrow-left" aria-hidden></i>
+					</button>}
+					<div><h2>选择 AI 队伍</h2><p>{format.label}</p></div>
+				</div>
+			</header>
+			{!this.aiPoolDetail && <form class="pokemonai-ai-pool-toolbar" onSubmit={this.searchAITeamPool}>
+				<label class="textbox pokemonai-ai-pool-search">
+					<i class="fa fa-search" aria-hidden></i>
+					<input
+						type="search" value={this.aiPoolDraftQuery} onInput={this.updateAIPoolQuery}
+						placeholder="搜索队伍或宝可梦" aria-label="搜索 AI 队伍"
+					/>
+				</label>
+				<button class="button" type="submit">搜索</button>
+			</form>}
+			{this.aiPoolDetail ? this.renderAITeamPoolDetail(this.aiPoolDetail, format) : this.aiPoolError ? <div class="message-error">AI 队伍加载失败：{this.aiPoolError}</div> :
+				this.aiPoolTeams === null ? <p class="pokemonai-loading"><i class="fa fa-refresh fa-spin" aria-hidden></i> 正在加载…</p> :
+				!this.aiPoolTeams.length ? <div class="pokemonai-empty-state"><p>没有符合条件的队伍。</p></div> :
+				<div class="pokemonai-ai-pool-grid" aria-label="AI 队伍列表">{this.aiPoolTeams.map(team => {
+					const selected = settings.fixedTeamId === team.id;
+					return <article class={`pokemonai-ai-pool-card${selected ? ' cur' : ''}`} key={team.id}>
+						<header><strong>{team.name}</strong>{selected && <span><i class="fa fa-check" aria-hidden></i> 已选择</span>}</header>
+						<div class="pokemonai-ai-pool-roster">{team.roster.slice(0, 6).map((species, index) => <span title={species} key={`${species}-${index}`}>
+							<span class="picon" style={Dex.getPokemonIcon(toID(species))} aria-hidden></span><small>{species}</small>
+						</span>)}</div>
+						<footer>
+							<small>{team.battles ? `${team.battles} 场` : '可用'}</small>
+							<span class="pokemonai-ai-pool-card-actions">
+								<button class="button" value={team.id} onClick={this.inspectAITeam}>查看</button>
+								<button class="button strong" value={team.id} onClick={this.selectFixedAITeam}>{selected ? '继续使用' : '选择'}</button>
+							</span>
+						</footer>
+					</article>;
+				})}</div>}
+			{this.aiPoolDetailLoading && <p class="pokemonai-loading"><i class="fa fa-refresh fa-spin" aria-hidden></i> 正在加载…</p>}
+			{!this.aiPoolDetail && <nav class="pokemonai-ai-pool-pagination" aria-label="AI 队伍分页">
+				<button class="button icon" value="-1" onClick={this.moveAITeamPoolPage} disabled={this.aiPoolPage <= 1 || this.aiPoolTeams === null} aria-label="上一页">
+					<i class="fa fa-chevron-left" aria-hidden></i>
+				</button>
+				<span>第 {this.aiPoolPage} / {pages} 页</span>
+				<button class="button icon" value="1" onClick={this.moveAITeamPoolPage} disabled={this.aiPoolPage >= pages || this.aiPoolTeams === null} aria-label="下一页">
+					<i class="fa fa-chevron-right" aria-hidden></i>
+				</button>
+			</nav>}
+		</main></PSPanelWrapper>;
+	}
+	renderCatalogTeams(formatId: string, selected: PokemonAITeamSelection | null) {
+		if (this.catalogError) return <div class="message-error">阵容库加载失败：{this.catalogError}</div>;
+		if (!this.catalogTeams) return <p><i class="fa fa-refresh fa-spin" aria-hidden></i> 正在读取阵容库…</p>;
+		const teams = this.catalogTeams.filter(team => team.format_id === formatId);
+		if (!teams.length) return <div class="pokemonai-empty-state"><p>这个规则下暂无内置阵容。</p></div>;
+		return <div class="pokemonai-team-list">{teams.map(team => {
+			const usable = pokemonAITeamIsUsable(team.validation_status);
+			const isSelected = selected?.source === 'catalog' && selected.key === team.id ||
+				!!selected?.packedTeam && selected.packedTeam === team.packed;
+			return <article class={`pokemonai-team-card${isSelected ? ' cur' : ''}${usable ? '' : ' disabled'}`} key={team.id}>
+				<button class="pokemonai-team-select" value={team.id} onClick={this.selectCatalogTeam} disabled={!usable}>
+					<span class="pokemonai-team-title">
+						<strong>{team.name}</strong>
+						<small>{team.source_label} · {pokemonAIValidationLabel(team.validation_status)}</small>
+					</span>
+					{this.renderRoster(team.roster.map(mon => (
+						mon.species_name || Dex.species.get(mon.species).name || mon.species
+					)))}
+					{isSelected && <i class="fa fa-check-circle pokemonai-selected-check" aria-label="已选择"></i>}
+				</button>
+				<div class="pokemonai-team-card-actions">
+					<button
+						class="button icon" value={team.id} onClick={this.inspectCatalogTeam}
+						title="查看阵容" aria-label={`查看 ${team.name}`} disabled={!usable}
+					>
+						<i class="fa fa-eye" aria-hidden></i>
+					</button>
+					<button
+						class="button icon" value={team.id} onClick={this.editCatalogTeam}
+						title="复制并编辑" aria-label={`复制并编辑 ${team.name}`} disabled={!usable}
+					>
+						<i class="fa fa-pencil" aria-hidden></i>
+					</button>
+				</div>
+			</article>;
+		})}</div>;
+	}
+	renderTeamPicker(format: (typeof PokemonAIConfig.formats)[number], selected: PokemonAITeamSelection | null) {
+		const topLayer = getPokemonAITopLayer('ai-battle' as RoomID);
+		if (topLayer?.kind !== 'team-picker' && topLayer?.kind !== 'team-detail') return null;
+		const localTeams = this.setupLocalTeams(format.id);
+		return <div class="pokemonai-team-picker-backdrop" role="presentation">
+			<section class="pokemonai-team-picker" role="dialog" aria-modal="true" aria-labelledby="pokemonai-team-picker-title">
+				<header>
+					<div><h2 id="pokemonai-team-picker-title">{topLayer.kind === 'team-detail' ? '阵容详情' : '更换队伍'}</h2><p>{format.label}</p></div>
+					<button class="button icon" onClick={topLayer.kind === 'team-detail' ? this.closeTeamDetails : this.closeTeamPicker} aria-label="关闭">
+						<i class="fa fa-times" aria-hidden></i>
+					</button>
+				</header>
+				{topLayer.kind === 'team-detail' && this.inspectedTeam ? <div class="pokemonai-team-picker-detail">
+					{this.renderTeamDetails(this.inspectedTeam, selected)}
+				</div> : <>
+					<div class="pokemonai-workspace-tabs" role="tablist" aria-label="队伍来源">
+						<button role="tab" class={this.teamPickerView === 'local' ? 'cur' : ''} aria-selected={this.teamPickerView === 'local'} onClick={this.showLocalPicker}>本地</button>
+						<button role="tab" class={this.teamPickerView === 'catalog' ? 'cur' : ''} aria-selected={this.teamPickerView === 'catalog'} onClick={this.showCatalogPicker}>线上</button>
+					</div>
+					<div class="pokemonai-team-picker-list">{this.teamPickerView === 'local' ? (
+						!localTeams.length ? <div class="pokemonai-empty-state"><p>这个规则下还没有本地队伍。</p></div> : localTeams.map(team => {
+							const isSelected = selected?.localTeamId === team.id;
+							return <article class={`pokemonai-team-card${isSelected ? ' cur' : ''}`} key={team.id}>
+								<button class="pokemonai-team-select" value={team.id} onClick={this.selectPickerLocal}>
+									<span class="pokemonai-team-title"><strong>{team.name}</strong><small>本地队伍 · {team.validation.status === 'valid' ? '可出战' : '待检查'}</small></span>
+									{this.renderRoster(pokemonAIRosterFromPacked(team.packedTeam))}
+									{isSelected && <i class="fa fa-check-circle pokemonai-selected-check" aria-label="已选择"></i>}
+								</button>
+								<div class="pokemonai-team-card-actions">
+									<button class="button icon" value={team.id} onClick={() => this.showTeamDetails(this.localInspection(team, format.id))} aria-label={`查看 ${team.name}`}><i class="fa fa-eye" aria-hidden></i></button>
+									<button class="button icon" value={team.id} onClick={this.editLocalTeam} aria-label={`编辑 ${team.name}`}><i class="fa fa-pencil" aria-hidden></i></button>
+								</div>
+							</article>;
+						})
+					) : this.renderCatalogTeams(format.id, selected)}</div>
+					<footer><button class="button" onClick={this.manageAllTeams}><i class="fa fa-folder-open" aria-hidden></i> 管理全部阵容</button></footer>
+				</>}
+			</section>
+		</div>;
+	}
+
+	override render() {
+		if (PokemonAIApp.isOnline()) return this.renderOnlineSetup();
+		const state = pokemonAISetupStore.getState();
+		const format = PokemonAIConfig.formats.find(entry => entry.id === state.formatId) || PokemonAIConfig.formats[0];
+		if (this.selectingAITeam) return this.renderAITeamPool(format);
+		const opponent = PokemonAIConfig.opponents.find(entry => entry.formatId === format.id);
+		const selected = pokemonAISetupStore.selection(format.id);
+		const localTeams = this.setupLocalTeams(format.id);
+		const activeTeam = this.activeSetupLocalTeam(format.id, localTeams, selected);
+		const activeRoster = activeTeam ? pokemonAIRosterFromPacked(activeTeam.packedTeam) : [];
+		const activeIsSelected = !!activeTeam && selected?.localTeamId === activeTeam.id;
+		const aiTeamSettings = pokemonAISetupStore.getAITeamSettings(format.id);
+		const unavailable = !opponent || (!!opponent.availability && opponent.availability !== 'ready');
+		const aiTeamUnavailable = this.aiCapabilities?.formats[format.id]?.modes[aiTeamSettings.mode] === false ||
+			(aiTeamSettings.mode === 'fixed' && !aiTeamSettings.fixedTeamId);
+		return <PSPanelWrapper room={this.props.room}><main class="pokemonai-workspace pokemonai-setup">
+			<header class="pokemonai-page-header">
+				<div><h2>对战准备</h2><p>{format.label}</p></div>
+				<nav class="pokemonai-page-actions" aria-label="对战准备操作">
+					<button class="button" onClick={this.openLocalTeams}><i class="fa fa-exchange" aria-hidden></i> 更换队伍</button>
+				</nav>
+			</header>
+			<section class="pokemonai-format-section" aria-labelledby="pokemonai-format-heading">
+				<h3 id="pokemonai-format-heading">规则</h3>
+				<div class="pokemonai-format-segments" role="group" aria-label="选择规则">
+					{PokemonAIConfig.formats.map(entry => <button
+						key={entry.id} class={entry.id === format.id ? 'cur' : ''} value={entry.id}
+						onClick={this.selectFormat} aria-pressed={entry.id === format.id}
+					>{entry.label.replace('Champions ', '')}</button>)}
+				</div>
+				{unavailable && <p class="message-error">{opponent?.reason || '该规则的 AI 暂不可用。'}</p>}
+			</section>
+			<div class={`pokemonai-setup-grid${this.inspectedTeam ? ' has-detail' : ''}`}>
+				<section class="pokemonai-team-browser" aria-labelledby="pokemonai-teams-heading">
+					<div class="pokemonai-section-bar">
+						<h3 id="pokemonai-teams-heading">本地队伍</h3>
+					</div>
+					{this.renderLocalTeams(format.id, selected)}
+					{this.renderAITeamSettings(format.id)}
+				</section>
+				<aside class={`pokemonai-team-summary${this.inspectedTeam ? ' is-detail' : ''}`}>
+					<div class="pokemonai-summary-body">{this.inspectedTeam ?
+						this.renderTeamDetails(this.inspectedTeam, selected) : <>
+							<h3>队伍摘要</h3>
+							<dl>
+								<dt>规则</dt><dd>{format.label}</dd>
+								<dt>正在查看</dt><dd>{activeTeam?.name || '没有可用队伍'}</dd>
+								<dt>AI 队伍</dt><dd>{pokemonAITeamModeLabel(aiTeamSettings.mode)}{
+									aiTeamSettings.mode === 'fixed' && aiTeamSettings.fixedTeamName ? ` · ${aiTeamSettings.fixedTeamName}` : ''
+								}</dd>
+							</dl>
+							{activeTeam ? <>
+								{this.renderRoster(activeRoster)}
+								<p class="pokemonai-validation">
+									<i class={`fa ${activeIsSelected ? 'fa-check-circle' : 'fa-eye'}`} aria-hidden></i>
+									{' '}{activeIsSelected ? '已设为出战' : '正在查看'}
+								</p>
+								<div class="pokemonai-detail-actions">
+									{!activeIsSelected && <button class="button strong" onClick={this.selectActiveTeam}>
+										<i class="fa fa-check" aria-hidden></i> 设为出战队伍
+									</button>}
+									<button class="button" onClick={this.inspectActiveTeam}><i class="fa fa-eye" aria-hidden></i> 查看详情</button>
+									<button class="button" onClick={this.editActiveTeam}><i class="fa fa-pencil" aria-hidden></i> 编辑</button>
+								</div>
+							</> : <p class="pokemonai-summary-empty">当前规则下没有可用的本地队伍。</p>}
+						</>}
+					</div>
+					<p class="pokemonai-start-team">{selected ? <>出战：<strong>{selected.name}</strong></> : '尚未设置出战队伍'}</p>
+					<button
+						class="button strong pokemonai-start-button" onClick={this.startBattle}
+						disabled={!selected || unavailable || aiTeamUnavailable || PS.isOffline}
+					>
+						<i class="fa fa-play" aria-hidden></i> 开始对战
+					</button>
+				</aside>
+			</div>
+		</main>{this.renderTeamPicker(format, selected)}</PSPanelWrapper>;
+	}
+}
+/* eslint-enable no-restricted-syntax, no-restricted-globals, @stylistic/max-len, @stylistic/indent, @typescript-eslint/no-misused-promises */
+
+type PokemonAIMetaImport = {
+	id: string, state: 'running' | 'up_to_date' | 'ready' | 'failed',
+	changed_formats?: string[], source_updated_at?: Record<string, string>, counts?: Record<string, number>,
+	progress?: { formatId?: string, current?: number, total?: number }, warnings?: string[], error?: string,
+};
+
+type PokemonAIMetaRequestOptions = {
+	method?: 'GET' | 'POST', body?: string,
+};
+
+type PokemonAIMetaSnapshotStatus = {
+	fetchedAt?: string, publishedAt?: string,
+	formats: Record<string, {
+		sourceUpdatedAt: string, speciesCount: number, teamSourceUpdatedAt?: string,
+		teamCount?: number, playableTeamCount?: number,
+	}>,
+};
+
+type PokemonAIMetaStatus = {
+	source: { id: string, label: string, url: string },
+	current: PokemonAIMetaSnapshotStatus | null,
+	previous: PokemonAIMetaSnapshotStatus | null,
+	canRollback: boolean,
+};
+
+function pokemonAIMetaDate(value?: string) {
+	if (!value) return '暂无数据';
+	if (/^\d{4}-\d{2}$/.test(value)) return value;
+	const date = new Date(value);
+	return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+class AIMetaPanel extends PSRoomPanel {
+	static readonly id = 'aimeta';
+	static readonly routes = ['ai-meta'];
+	static readonly title = '环境数据';
+	static readonly location = 'left';
+
+	status: PokemonAIMetaStatus | null = null;
+	activeImport: PokemonAIMetaImport | null = null;
+	message = '';
+	busy = false;
+	timer: ReturnType<typeof setTimeout> | null = null;
+
+	override componentDidMount() {
+		super.componentDidMount();
+		navigator.serviceWorker?.addEventListener('controllerchange', this.handleServiceWorkerChange);
+		this.loadStatus();
+	}
+	override componentWillUnmount() {
+		if (this.timer) clearTimeout(this.timer);
+		navigator.serviceWorker?.removeEventListener('controllerchange', this.handleServiceWorkerChange);
+		super.componentWillUnmount();
+	}
+	handleServiceWorkerChange = () => this.loadStatus();
+	back = () => {
+		focusPokemonAIReturnTarget((this.props.room.args?.returnTo as PokemonAIReturnTarget | undefined) || {
+			roomid: '' as RoomID,
+		});
+		PS.leave(this.props.room.id);
+	};
+
+	request<T>(url: string, init: PokemonAIMetaRequestOptions = {}) {
+		const endpoint = new URL(url, document.location.origin).href;
+		const pending = init.method === 'POST' ? Net(endpoint).post({
+			body: init.body,
+			headers: { 'Content-Type': 'application/json', 'X-PokemonAI-Control': '1' },
+		}) : Net(endpoint).get();
+		return pending.then(text => {
+			const value = JSON.parse(text) as T & { error?: string };
+			if (value.error) throw new Error(value.error);
+			return value;
+		});
+	}
+	loadStatus = () => {
+		this.request<PokemonAIMetaStatus>('/api/meta/status').then(value => {
+			this.status = value;
+			this.message = '';
+		}, error => {
+			this.message = error instanceof Error ? error.message : String(error);
+		}).then(() => this.forceUpdate());
+	};
+	startImport = () => {
+		this.busy = true;
+		this.message = '';
+		this.forceUpdate();
+		this.request<PokemonAIMetaImport>('/api/meta/imports', {
+			method: 'POST', body: '{}',
+		}).then(value => {
+			this.activeImport = value;
+			this.pollImport(value.id);
+		}, error => {
+			this.message = error instanceof Error ? error.message : String(error);
+			this.busy = false;
+			this.forceUpdate();
+		});
+	};
+	pollImport = (id: string) => {
+		this.timer = setTimeout(() => {
+			this.request<PokemonAIMetaImport>(`/api/meta/imports/${id}`).then(value => {
+				this.activeImport = value;
+				if (value.state === 'running') {
+					this.pollImport(id);
+				} else {
+					this.busy = false;
+					if (value.state === 'up_to_date') this.message = '当前数据已是最新。';
+				}
+			}, error => {
+				this.message = error instanceof Error ? error.message : String(error);
+				this.busy = false;
+			}).then(() => this.forceUpdate());
+		}, 700);
+	};
+	publish = () => {
+		if (!this.activeImport) return;
+		this.request(`/api/meta/imports/${this.activeImport.id}/publish`, { method: 'POST', body: '{}' }).then(() => {
+			this.message = '数据已更新。';
+			this.activeImport = null;
+			this.loadStatus();
+		}, error => {
+			this.message = error instanceof Error ? error.message : String(error);
+			this.forceUpdate();
+		});
+	};
+	rollback = (ev: MouseEvent) => {
+		PS.confirm('恢复上一次数据？', {
+			okButton: '恢复', cancelButton: '取消', parentElem: ev.currentTarget as HTMLElement,
+		}).then(confirmed => {
+			if (!confirmed) return;
+			this.request('/api/meta/rollback', { method: 'POST', body: '{}' }).then(() => {
+				this.message = '已恢复上一次数据。';
+				this.loadStatus();
+			}, error => {
+				this.message = error instanceof Error ? error.message : String(error);
+				this.forceUpdate();
+			});
 		});
 	};
 
 	override render() {
-		const formats: string[] = [];
-		for (const team of this.teams || []) {
-			if (!formats.includes(team.format_id)) formats.push(team.format_id);
-		}
-		const teams = (this.teams || []).filter(team => this.formatFilter === 'all' || team.format_id === this.formatFilter);
-		return <PSPanelWrapper room={this.props.room} width={820}><div class="pad pokemonai-library">
+		const current = this.status?.current;
+		const progress = this.activeImport?.progress;
+		const progressFormat = PokemonAIConfig.formats.find(format => format.id === progress?.formatId);
+		return <PSPanelWrapper room={this.props.room}><main class="pokemonai-workspace pokemonai-meta">
 			<div class="pokemonai-launcher-head">
-				<div><h2>阵容库</h2><p>内置阵容与经过版本锁定的开源数据源统一展示，离线时使用已构建的本地缓存。</p></div>
-				<a class="button" href="ai-battle"><i class="fa fa-play" aria-hidden></i> 返回对战</a>
+				<div class="pokemonai-detail-heading">
+					<button class="button icon" onClick={this.back} aria-label="返回"><i class="fa fa-arrow-left" aria-hidden></i></button>
+					<div><h2>环境数据</h2></div>
+				</div>
+				<button class="button" onClick={this.rollback} disabled={!this.status?.canRollback || this.busy}>
+					<i class="fa fa-undo" aria-hidden></i> 恢复上一次数据
+				</button>
 			</div>
-			<p><label>规则： <select class="select" value={this.formatFilter} onChange={this.changeFormat}>
-				<option value="all">全部</option>
-				{formats.map(format => <option key={format} value={format}>{pokemonAIFormatLabel(format)}</option>)}
-			</select></label></p>
-			{this.error ? <div class="message-error">阵容库加载失败：{this.error}</div> : !this.teams ?
-				<p><i class="fa fa-refresh fa-spin" aria-hidden></i> 正在读取阵容库…</p> :
-				<div class="pokemonai-team-grid">{teams.map(team => <article key={team.id} class="pokemonai-team-card">
-					<header><strong>{team.name}</strong><small>{team.archetype}</small></header>
-					<div class="pokemonai-roster">{team.roster.map((mon, index) => <span key={`${mon.species}-${index}`}>
-						{mon.species_name || Dex.species.get(mon.species).name || mon.species}
-					</span>)}</div>
-					<p>{team.tags.map(tag => <span key={tag} class="pokemonai-tag">{tag}</span>)}</p>
-					<footer>
-						<small>{team.source_label} · {pokemonAIValidationLabel(team.validation_status)}</small>
-						<span class="pokemonai-team-actions">
-							<button class="button" value={team.id} onClick={this.useTeam}>设为出战队伍</button>
-							<button class="button" value={team.id} onClick={this.copyTeam}>复制文本</button>
-						</span>
-					</footer>
-				</article>)}</div>}
-			{this.teams && !teams.length && <p>当前筛选条件下没有阵容。</p>}
-			<p><small>外部仓库只读取固定提交中的数据文件；同步器不会执行仓库代码。</small></p>
-		</div></PSPanelWrapper>;
+			<div class="pokemonai-meta-toolbar">
+				<span>{this.status?.source ?
+					<a href={this.status.source.url} target="_blank">{this.status.source.label}</a> : 'MunchStats'}</span>
+				<button class="button strong" onClick={this.startImport} disabled={this.busy}>
+					<i class="fa fa-refresh" aria-hidden></i> 检查更新
+				</button>
+			</div>
+			<section class="pokemonai-meta-status">
+				{current ? <dl>{PokemonAIConfig.formats.map(format => {
+					const item = current.formats[format.id];
+					return <><dt>{format.label}</dt><dd>{item ? <>
+						{pokemonAIMetaDate(item.sourceUpdatedAt)} · {item.speciesCount} 只 · {item.teamCount || 0} 支阵容
+						{!!item.playableTeamCount && ` · ${item.playableTeamCount} 支可直接使用`}
+					</> : '暂无数据'}</dd></>;
+				})}</dl> : <p>尚无环境数据。</p>}
+			</section>
+			{this.message && <p class="pokemonai-meta-message">{this.message}</p>}
+			{this.activeImport && <section class="pokemonai-meta-preview">
+				<h3>{this.activeImport.state === 'running' ? '正在检查更新' :
+				this.activeImport.state === 'failed' ? '更新失败' :
+				this.activeImport.state === 'up_to_date' ? '已是最新数据' : '可用更新'}</h3>
+				{this.activeImport.error && <p class="message-error">{this.activeImport.error}</p>}
+				{progress?.total && <p>{progressFormat?.label || progress.formatId}：{progress.current || 0} / {progress.total}</p>}
+				{this.activeImport.counts && <dl>{PokemonAIConfig.formats.map(format => <>
+					<dt>{format.label}</dt><dd>{this.activeImport?.counts?.[format.id] || 0} 只</dd>
+				</>)}</dl>}
+				{this.activeImport.warnings?.map(warning => <p class="message-warning">{warning}</p>)}
+				{this.activeImport.state === 'ready' && <button class="button strong" onClick={this.publish}>
+					<i class="fa fa-check" aria-hidden></i> 应用数据
+				</button>}
+			</section>}
+		</main></PSPanelWrapper>;
 	}
 }
 
@@ -1172,8 +2013,43 @@ class OfficialAccountPanel extends PSRoomPanel {
 	static readonly routes = ['official-account'];
 	static readonly title = '官方账号授权';
 	static readonly location = 'modal-popup';
+	static readonly noURL = true;
 
 	declare state: { error?: string };
+
+	override componentDidMount() {
+		super.componentDidMount();
+		this.base?.addEventListener('keydown', this.handleDialogKeyDown);
+		const dialog = this.base?.closest<HTMLElement>('[role="dialog"]');
+		dialog?.setAttribute('aria-modal', 'true');
+		dialog?.setAttribute('aria-labelledby', 'pokemonai-auth-title');
+		setTimeout(() => this.base?.querySelector<HTMLElement>('button[name=closeRoom]')?.focus(), 0);
+	}
+	override componentWillUnmount() {
+		this.base?.removeEventListener('keydown', this.handleDialogKeyDown);
+		super.componentWillUnmount();
+	}
+	handleDialogKeyDown = (ev: KeyboardEvent) => {
+		if (ev.key === 'Escape') {
+			ev.preventDefault();
+			PS.closePopup();
+			return;
+		}
+		if (ev.key !== 'Tab' || !this.base) return;
+		const focusable = Array.from(this.base.querySelectorAll<HTMLElement>(
+			'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+		));
+		if (!focusable.length) return;
+		const first = focusable[0];
+		const last = focusable[focusable.length - 1];
+		if (ev.shiftKey && document.activeElement === first) {
+			ev.preventDefault();
+			last.focus();
+		} else if (!ev.shiftKey && document.activeElement === last) {
+			ev.preventDefault();
+			first.focus();
+		}
+	};
 
 	saveSID = (ev: Event) => {
 		ev.preventDefault();
@@ -1192,7 +2068,10 @@ class OfficialAccountPanel extends PSRoomPanel {
 	override render() {
 		const hasSid = PokemonAIApp.hasOfficialSid();
 		return <PSPanelWrapper room={this.props.room} width={430}><div class="pad pokemonai-auth-panel">
-			<h2><i class="fa fa-shield" aria-hidden></i> 官方账号授权</h2>
+			<button class="closebutton" name="closeRoom" type="button" aria-label="关闭">
+				<i class="fa fa-times" aria-hidden></i>
+			</button>
+			<h2 id="pokemonai-auth-title"><i class="fa fa-shield" aria-hidden></i> 官方账号授权</h2>
 			<p>PokémonAI 不接收你的 Showdown 密码。请先在官方页面登录，再复制当前设备的 Test Client SID。</p>
 			<p><a
 				class="button" href="https://play.pokemonshowdown.com/testclient-key.php"
@@ -1210,7 +2089,7 @@ class OfficialAccountPanel extends PSRoomPanel {
 				<p class="buttonbar">
 					<button class="button strong" type="submit">保存并验证</button> {}
 					{hasSid && <button class="button danger" type="button" onClick={this.clearSID}>清除已有授权</button>} {}
-					<button class="button" type="button" data-cmd="/close">取消</button>
+					<button class="button" type="button" name="closeRoom">取消</button>
 				</p>
 			</form>
 			<p><small>SID 是敏感的会话凭据，只保存在当前浏览器。不要发送给其他人。</small></p>
@@ -1538,4 +2417,4 @@ export class TeamForm extends preact.Component<{
 	}
 }
 
-PS.addRoomType(NewsPanel, AIBattlePanel, AITeamLibraryPanel, OfficialAccountPanel, MainMenuPanel);
+PS.addRoomType(NewsPanel, AISetupPanel, AIMetaPanel, OfficialAccountPanel, MainMenuPanel);

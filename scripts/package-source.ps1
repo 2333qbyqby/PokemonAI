@@ -14,7 +14,7 @@ try {
         '--exclude=.git' '--exclude=.runtime' '--exclude=node_modules' `
         '--exclude=__pycache__' '--exclude=*.pyc' '--exclude=.pytest_cache' `
         '--exclude=./data/agents' '--exclude=./data/battles' '--exclude=./data/test-results' `
-        '--exclude=./data/team-sources/cache' '--exclude=artifacts' '--exclude=pokemonai-source.tar.gz' '.'
+        '--exclude=./var' '--exclude=artifacts' '--exclude=pokemonai-source.tar.gz' '.'
     if ($LASTEXITCODE -ne 0) { throw 'tar failed while creating the source archive.' }
 } finally {
     Pop-Location

@@ -2026,6 +2026,11 @@ export const PS = new class extends PSModel {
 			return true;
 		}
 		if (room.type === 'battle') {
+			if (Config.pokemonaiApp && (
+				(oldWidth < 700) !== (newWidth < 700) ||
+				(oldWidth < 1000) !== (newWidth < 1000) ||
+				(oldHeight < 560) !== (newHeight < 560)
+			)) return true;
 			if ((oldWidth < 500) !==
 				(newWidth < 500)) {
 				return true;
@@ -2181,6 +2186,13 @@ export const PS = new class extends PSModel {
 				minWidth: 660,
 				width: 660,
 				maxWidth: 660,
+			};
+		case 'aibattle':
+		case 'aimeta':
+			return {
+				minWidth: 480,
+				width: 900,
+				maxWidth: 1180,
 			};
 		case 'battle': {
 			const sideBySide = !this.prefs.battlelayout ||
@@ -2372,6 +2384,11 @@ export const PS = new class extends PSModel {
 				this.update();
 				continue;
 			} case 'nametaken': {
+				if (Config.pokemonaiApp?.isAI() && Config.pokemonaiApp.isLocalTrainerName(args[1])) {
+					PS.user.loggingIn = null;
+					PS.user.changeName(Config.pokemonaiApp.nextLocalTrainerName());
+					break;
+				}
 				PS.join('login' as RoomID, { args: { error: `Someone is already using the name ${args[1]}.` } });
 				break;
 			} case 'chat': case 'c': {

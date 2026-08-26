@@ -1,0 +1,351 @@
+.pokemonai-team-workspace { max-width: 1180px; }
+
+.pokemonai-workspace-tabs {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	max-width: 440px;
+	margin: 20px 0 0;
+	padding: 4px;
+	background: var(--pokemonai-canvas);
+	border: 1px solid var(--pokemonai-line);
+	border-radius: 8px;
+}
+.pokemonai-workspace-tabs button {
+	min-height: 42px;
+	color: var(--pokemonai-muted);
+	background: transparent;
+	border: 0;
+	border-radius: 6px;
+	font: 700 14px/1.2 inherit;
+	cursor: pointer;
+}
+.pokemonai-workspace-tabs button.cur { color: #fff; background: var(--pokemonai-accent); }
+
+.pokemonai-library-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 420px;
+	gap: 28px;
+	padding-top: 20px;
+}
+.pokemonai-library-layout.is-local { grid-template-columns: minmax(0, 1fr); gap: 0; }
+.pokemonai-library-list,
+.pokemonai-library-detail { min-width: 0; }
+.pokemonai-library-toolbar {
+	display: grid;
+	grid-template-columns: minmax(220px, 1fr) auto auto;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+.pokemonai-library-toolbar > .button { min-height: 42px; }
+.pokemonai-search { position: relative; display: block; min-width: 0; }
+.pokemonai-search .fa { position: absolute; top: 14px; left: 12px; z-index: 1; color: var(--pokemonai-muted); }
+.pokemonai-search .textbox { width: 100%; min-height: 42px; padding: 8px 10px 8px 34px; }
+.pokemonai-library-list .pokemonai-format-segments { margin-bottom: 12px; }
+.pokemonai-library-cards { display: grid; gap: 10px; }
+.pokemonai-library-card {
+	min-width: 0;
+	background: var(--pokemonai-surface);
+	border: 1px solid var(--pokemonai-line);
+	border-radius: 8px;
+	overflow: hidden;
+}
+.pokemonai-library-card:hover { border-color: color-mix(in srgb, var(--pokemonai-accent) 55%, var(--pokemonai-line)); }
+.pokemonai-library-card:focus-within { border-color: var(--pokemonai-accent); }
+.pokemonai-library-card.deleted { opacity: 0.7; }
+.pokemonai-library-card-main {
+	display: grid;
+	grid-template-columns: minmax(170px, 0.9fr) minmax(280px, 1.4fr);
+	grid-template-areas: "title roster" "meta roster";
+	gap: 8px 16px;
+	width: 100%;
+	min-height: 110px;
+	padding: 14px 16px;
+	text-align: left;
+	color: var(--pokemonai-text);
+	background: transparent;
+	border: 0;
+	font: inherit;
+	cursor: pointer;
+}
+.pokemonai-library-title { grid-area: title; min-width: 0; align-self: end; }
+.pokemonai-library-title strong,
+.pokemonai-library-title small { display: block; }
+.pokemonai-library-title strong { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.pokemonai-library-title small { margin-top: 4px; color: var(--pokemonai-muted); font-size: 11px; }
+.pokemonai-library-meta { grid-area: meta; display: flex; align-items: center; gap: 8px; min-width: 0; align-self: start; }
+.pokemonai-library-meta small { overflow: hidden; color: var(--pokemonai-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.pokemonai-completeness,
+.pokemonai-validation-status {
+	flex: 0 0 auto;
+	padding: 3px 6px;
+	color: var(--pokemonai-muted);
+	background: var(--pokemonai-canvas);
+	border: 1px solid var(--pokemonai-line);
+	border-radius: 4px;
+	font-size: 11px;
+	font-weight: 700;
+}
+.pokemonai-completeness.full-set,
+.pokemonai-validation-status.valid { color: var(--pokemonai-success); border-color: color-mix(in srgb, var(--pokemonai-success) 40%, var(--pokemonai-line)); }
+.pokemonai-validation-status.invalid { color: var(--pokemonai-danger); border-color: color-mix(in srgb, var(--pokemonai-danger) 40%, var(--pokemonai-line)); }
+
+.pokemonai-sprite-roster {
+	grid-area: roster;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 6px;
+	min-width: 0;
+}
+.pokemonai-sprite-member {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	height: 36px;
+	padding: 2px 5px;
+	background: var(--pokemonai-canvas);
+	border-radius: 5px;
+}
+.pokemonai-sprite-member .picon { width: 40px; height: 30px; flex: 0 0 40px; }
+.pokemonai-sprite-member small { overflow: hidden; color: var(--pokemonai-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+
+.pokemonai-library-detail {
+	align-self: start;
+	position: sticky;
+	top: 16px;
+	max-height: calc(100vh - 150px);
+	padding-left: 24px;
+	overflow-y: auto;
+	border-left: 1px solid var(--pokemonai-line);
+	outline: 0;
+}
+.pokemonai-library-detail > .pokemonai-sprite-roster { margin: 16px 0; }
+.pokemonai-library-layout.is-local .pokemonai-local-detail {
+	position: static;
+	max-height: none;
+	padding: 20px 0 0;
+	overflow: visible;
+	border-top: 1px solid var(--pokemonai-line);
+	border-left: 0;
+}
+.pokemonai-library-layout.is-local .pokemonai-local-detail > .pokemonai-sprite-roster { max-width: 620px; }
+.pokemonai-library-layout.is-local .pokemonai-set-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }
+.pokemonai-detail-placeholder { display: grid; min-height: 280px; place-content: center; text-align: center; color: var(--pokemonai-muted); }
+.pokemonai-detail-placeholder .fa { font-size: 28px; }
+.pokemonai-detail-heading h3 { max-width: 320px; margin: 0; overflow-wrap: anywhere; font-size: 18px; }
+.pokemonai-team-metrics { display: grid; grid-template-columns: repeat(3, 1fr); margin: 12px 0; border: 1px solid var(--pokemonai-line); border-radius: 6px; }
+.pokemonai-team-metrics dt,
+.pokemonai-team-metrics dd { margin: 0; padding: 7px 8px; text-align: center; }
+.pokemonai-team-metrics dt { grid-row: 1; color: var(--pokemonai-muted); font-size: 11px; }
+.pokemonai-team-metrics dd { grid-row: 2; font-size: 14px; font-weight: 700; }
+.pokemonai-roster-only-state,
+.pokemonai-team-notes {
+	margin: 14px 0;
+	padding: 12px;
+	color: var(--pokemonai-muted);
+	background: var(--pokemonai-canvas);
+	border-left: 3px solid var(--pokemonai-line);
+	font-size: 12px;
+	line-height: 1.5;
+	white-space: pre-wrap;
+}
+.pokemonai-set-grid { display: grid; gap: 0; margin-top: 14px; border-top: 1px solid var(--pokemonai-line); }
+.pokemonai-set-row { padding: 12px 0; border-bottom: 1px solid var(--pokemonai-line); }
+.pokemonai-set-row header { display: flex; align-items: center; gap: 8px; }
+.pokemonai-set-row header .picon { width: 40px; height: 30px; flex: 0 0 40px; }
+.pokemonai-set-row header strong,
+.pokemonai-set-row header small { display: block; }
+.pokemonai-set-row header small,
+.pokemonai-set-row p { margin: 3px 0; color: var(--pokemonai-muted); font-size: 11px; }
+.pokemonai-set-row ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+.pokemonai-set-row li { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.pokemonai-copy-form { display: grid; gap: 14px; margin-top: 18px; }
+.pokemonai-copy-form label,
+.pokemonai-editor-metadata label { display: grid; gap: 6px; color: var(--pokemonai-muted); font-size: 12px; font-weight: 700; }
+.pokemonai-copy-form .textbox { width: 100%; padding: 9px 10px; resize: vertical; }
+.pokemonai-copy-form .button { min-height: 44px; }
+.pokemonai-detail-actions { flex-wrap: wrap; }
+.pokemonai-detail-actions .button.danger { color: #fff; background: var(--pokemonai-danger); border-color: var(--pokemonai-danger); }
+.pokemonai-loading { padding: 20px; text-align: center; color: var(--pokemonai-muted); }
+.pokemonai-pagination { margin-top: 16px; }
+.pokemonai-pagination-desktop,
+.pokemonai-pagination-mobile { align-items: center; justify-content: center; gap: 8px; }
+.pokemonai-pagination-desktop { display: flex; }
+.pokemonai-pagination-mobile { display: none; }
+.pokemonai-page-numbers { display: flex; align-items: center; gap: 4px; }
+.pokemonai-page-numbers .button { min-width: 36px; height: 36px; padding: 0 8px; }
+.pokemonai-page-numbers .button.cur { color: #fff; background: var(--pokemonai-accent); border-color: var(--pokemonai-accent); }
+.pokemonai-page-numbers span { min-width: 20px; text-align: center; color: var(--pokemonai-muted); }
+.pokemonai-new-team { margin-bottom: 12px; }
+.pokemonai-purge-teams { float: right; margin-bottom: 12px; }
+.pokemonai-inline-notice { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; padding: 8px 10px; color: var(--pokemonai-success); background: color-mix(in srgb, var(--pokemonai-success) 10%, var(--pokemonai-surface)); border-left: 3px solid var(--pokemonai-success); }
+
+.pokemonai-team-carousel { min-width: 0; margin: 4px 0 20px; }
+.pokemonai-carousel-status { min-height: 24px; color: var(--pokemonai-muted); text-align: center; font-size: 12px; font-weight: 700; }
+.pokemonai-carousel-shell { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px; min-width: 0; }
+.pokemonai-carousel-arrow { width: 44px; height: 44px; padding: 0; border-radius: 50%; }
+.pokemonai-team-carousel.count-1 .pokemonai-carousel-shell { grid-template-columns: minmax(0, 1fr); }
+.pokemonai-team-carousel.count-1 .pokemonai-carousel-arrow { display: none; }
+.pokemonai-team-carousel.count-1 .pokemonai-carousel-track { justify-content: center; }
+.pokemonai-team-carousel.count-1 .pokemonai-carousel-track::before,
+.pokemonai-team-carousel.count-1 .pokemonai-carousel-track::after { display: none; }
+.pokemonai-carousel-track {
+	--pokemonai-carousel-card-width: calc((100% - 24px) / 3);
+	display: flex;
+	gap: 12px;
+	min-width: 0;
+	padding: 2px;
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+	scroll-behavior: smooth;
+	scroll-snap-type: x mandatory;
+	scrollbar-width: none;
+	outline: 0;
+}
+.pokemonai-carousel-track::before,
+.pokemonai-carousel-track::after {
+	content: '';
+	flex: 0 0 calc((100% - var(--pokemonai-carousel-card-width)) / 2 - 12px);
+}
+.pokemonai-carousel-track::-webkit-scrollbar { display: none; }
+.pokemonai-carousel-track:focus-visible { outline: 2px solid var(--pokemonai-accent); outline-offset: 3px; }
+.pokemonai-carousel-card {
+	min-width: 0;
+	min-height: 178px;
+	flex: 0 0 var(--pokemonai-carousel-card-width);
+	background: var(--pokemonai-surface);
+	border: 1px solid var(--pokemonai-line);
+	border-radius: 8px;
+	scroll-snap-align: center;
+	overflow: hidden;
+}
+.pokemonai-carousel-card.active { border-color: var(--pokemonai-accent); box-shadow: inset 0 0 0 1px var(--pokemonai-accent); }
+.pokemonai-carousel-card-button {
+	display: grid;
+	grid-template-rows: auto auto auto auto;
+	gap: 9px;
+	width: 100%;
+	min-height: 176px;
+	padding: 13px;
+	text-align: left;
+	color: var(--pokemonai-text);
+	background: transparent;
+	border: 0;
+	font: inherit;
+	cursor: pointer;
+}
+.pokemonai-carousel-card-button:focus-visible { outline: 2px solid var(--pokemonai-accent); outline-offset: -3px; }
+.pokemonai-carousel-title { min-width: 0; }
+.pokemonai-carousel-title strong {
+	display: -webkit-box;
+	min-height: 34px;
+	overflow: hidden;
+	font-size: 14px;
+	line-height: 17px;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+}
+.pokemonai-carousel-title small { display: block; margin-top: 3px; overflow: hidden; color: var(--pokemonai-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.pokemonai-carousel-roster { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; min-width: 0; }
+.pokemonai-carousel-member { display: flex; align-items: center; min-width: 0; height: 32px; padding: 1px 4px; background: var(--pokemonai-canvas); border-radius: 5px; }
+.pokemonai-carousel-member.empty { border: 1px dashed var(--pokemonai-line); background: transparent; }
+.pokemonai-carousel-member .picon { width: 36px; height: 30px; flex: 0 0 36px; }
+.pokemonai-carousel-member small { overflow: hidden; color: var(--pokemonai-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.pokemonai-carousel-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
+.pokemonai-battle-team-badge { flex: 0 0 auto; color: var(--pokemonai-accent); font-size: 10px; font-weight: 700; }
+.pokemonai-carousel-notes { overflow: hidden; color: var(--pokemonai-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+	.pokemonai-carousel-track { scroll-behavior: auto; }
+}
+
+.pokemonai-team-editor-workspace {
+	width: min(1180px, calc(100% - 32px));
+	min-height: calc(100% - 32px);
+	margin: 16px auto;
+	padding: 20px 24px 32px;
+	color: var(--pokemonai-text);
+	background: rgba(255, 255, 255, 0.98);
+	border: 1px solid var(--pokemonai-line);
+	border-radius: 8px;
+	box-shadow: var(--pokemonai-shadow);
+}
+.dark .pokemonai-team-editor-workspace { background: rgba(24, 34, 45, 0.98); }
+.pokemonai-editor-header { display: grid; grid-template-columns: auto minmax(160px, 1fr) auto; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--pokemonai-line); }
+.pokemonai-editor-header h2 { margin: 0; font-size: 20px; }
+.pokemonai-editor-header p { margin: 3px 0 0; color: var(--pokemonai-muted); font-size: 12px; }
+.pokemonai-editor-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.pokemonai-editor-metadata { display: grid; grid-template-columns: minmax(180px, 0.7fr) minmax(280px, 1.3fr); gap: 12px 18px; padding: 16px 0; }
+.pokemonai-editor-metadata .textbox { width: 100%; padding: 8px 10px; resize: vertical; }
+.pokemonai-editor-metadata .message-error,
+.pokemonai-editor-metadata .message-success { grid-column: 1 / -1; margin: 0; }
+.pokemonai-editor-core { min-width: 0; border-top: 1px solid var(--pokemonai-line); }
+.pokemonai-editor-core .teameditor { max-width: none; }
+.message-success { padding: 8px 10px; color: var(--pokemonai-success); background: color-mix(in srgb, var(--pokemonai-success) 10%, var(--pokemonai-surface)); border-left: 3px solid var(--pokemonai-success); }
+
+@media (max-width: 900px) {
+	.pokemonai-library-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+	.pokemonai-library-detail { position: static; max-height: none; padding-left: 0; overflow: visible; border-left: 0; }
+	.pokemonai-library-layout.has-detail:not(.is-local) .pokemonai-library-list { display: none; }
+	.pokemonai-detail-placeholder { display: none; }
+	.pokemonai-carousel-track { --pokemonai-carousel-card-width: calc((100% - 12px) / 2); }
+}
+
+@media (max-width: 700px) {
+	.pokemonai-workspace-tabs { max-width: none; }
+	.pokemonai-library-toolbar { grid-template-columns: minmax(0, 1fr); }
+	.pokemonai-library-card-main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "title" "roster" "meta"; }
+	.pokemonai-pagination-desktop { display: none; }
+	.pokemonai-pagination-mobile { display: flex; }
+	.pokemonai-pagination-mobile .button { width: 44px; height: 44px; padding: 0; }
+	.pokemonai-pagination-mobile span { min-width: 112px; text-align: center; font-size: 13px; font-weight: 700; }
+	.pokemonai-sprite-roster { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+	.pokemonai-carousel-shell { grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 4px; }
+	.pokemonai-carousel-track { --pokemonai-carousel-card-width: calc(100% - 56px); }
+	.pokemonai-carousel-card-button { padding: 12px; }
+	.pokemonai-library-layout.is-local .pokemonai-set-grid { grid-template-columns: minmax(0, 1fr); }
+	.pokemonai-team-editor-workspace { width: calc(100% - 16px); margin: 8px auto; padding: 14px 12px 24px; background: var(--pokemonai-surface); }
+	.pokemonai-editor-header { grid-template-columns: auto minmax(0, 1fr); }
+	.pokemonai-editor-actions { grid-column: 1 / -1; justify-content: stretch; }
+	.pokemonai-editor-actions .button { flex: 1 1 140px; min-height: 42px; }
+	.pokemonai-editor-metadata { grid-template-columns: minmax(0, 1fr); }
+}
+.pokemonai-team-picker-backdrop {
+	position: fixed;
+	z-index: 35;
+	top: 56px;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	display: flex;
+	justify-content: flex-end;
+	background: rgba(16, 23, 34, 0.42);
+}
+
+.pokemonai-team-picker {
+	box-sizing: border-box;
+	width: min(520px, 92vw);
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	color: var(--pokemonai-text);
+	background: var(--pokemonai-surface);
+	border-left: 1px solid var(--pokemonai-line);
+	box-shadow: -12px 0 30px rgba(16, 23, 34, 0.2);
+}
+
+.pokemonai-team-picker > header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 20px 22px 14px;
+	border-bottom: 1px solid var(--pokemonai-line);
+}
+.pokemonai-team-picker > header h2 { margin: 0; font-size: 22px; }
+.pokemonai-team-picker > header p { margin: 4px 0 0; color: var(--pokemonai-muted); }
+.pokemonai-team-picker .pokemonai-workspace-tabs { flex: 0 0 auto; margin: 12px 18px 0; }
+.pokemonai-team-picker-list,
+.pokemonai-team-picker-detail { min-height: 0; flex: 1 1 auto; overflow: auto; padding: 16px 18px; }
+.pokemonai-team-picker-list .pokemonai-team-card { margin-bottom: 10px; }
+.pokemonai-team-picker > footer { flex: 0 0 auto; padding: 12px 18px; border-top: 1px solid var(--pokemonai-line); }
+.pokemonai-team-picker > footer .button { width: 100%; min-height: 42px; }

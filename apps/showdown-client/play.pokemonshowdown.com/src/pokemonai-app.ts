@@ -28,6 +28,7 @@ const MODE_KEY = 'pokemonai-app-mode';
 const SID_KEY = 'pokemonai-official-sid';
 const LOCALE_KEY = 'pokemonai-locale';
 const ORIENTATION_KEY = 'pokemonai-orientation-tip-seen';
+const LOCAL_TRAINER_NAME_PREFIX = 'Local Player ';
 
 function safeStorageGet(key: string): string {
 	try {
@@ -137,6 +138,7 @@ export const PokemonAIApp = {
 	profiles: modeProfiles,
 	profile: modeProfiles[appMode],
 	officialAuthState: 'idle' as OfficialAuthState,
+	localTrainerNumber: 1,
 	storageKeys: {
 		mode: MODE_KEY,
 		officialSid: SID_KEY,
@@ -150,6 +152,20 @@ export const PokemonAIApp = {
 	},
 	isOnline() {
 		return this.mode === 'online';
+	},
+	localTrainerName() {
+		return `${LOCAL_TRAINER_NAME_PREFIX}${this.localTrainerNumber}`;
+	},
+	nextLocalTrainerName() {
+		this.localTrainerNumber++;
+		return this.localTrainerName();
+	},
+	isLocalTrainerName(name: string) {
+		return name.startsWith(LOCAL_TRAINER_NAME_PREFIX);
+	},
+	displayTrainerName(name: string) {
+		const match = /^Local Player (\d+)$/.exec(name);
+		return match ? `本地玩家${match[1]}` : name;
 	},
 	getOfficialSid() {
 		return safeStorageGet(SID_KEY).trim();
@@ -220,6 +236,6 @@ const Config = (window as any).Config = {
 
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && location.protocol !== 'file:') {
 	window.addEventListener('load', () => {
-		navigator.serviceWorker.register('/pokemonai-sw.js').catch(() => undefined);
+		navigator.serviceWorker.register('/pokemonai-sw.js', { updateViaCache: 'none' }).catch(() => undefined);
 	});
 }

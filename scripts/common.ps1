@@ -7,10 +7,9 @@ $script:NodeRoot = Join-Path $script:RuntimeRoot 'node'
 $script:NodeExe = Join-Path $script:NodeRoot 'node.exe'
 $script:NpmCmd = Join-Path $script:NodeRoot 'npm.cmd'
 $script:UvExe = Join-Path $script:RuntimeRoot 'uv\uv.exe'
-$script:BaselinePython = Join-Path $script:RuntimeRoot 'venvs\baseline-ai\Scripts\python.exe'
-$script:FoulPlayPython = Join-Path $script:RuntimeRoot 'venvs\foul-play\Scripts\python.exe'
+$script:ControlPython = Join-Path $script:RuntimeRoot 'venvs\control-plane\Scripts\python.exe'
 $script:PidRoot = Join-Path $script:RuntimeRoot 'pids'
-$script:LogRoot = Join-Path $script:ProjectRoot 'data\process-logs'
+$script:LogRoot = Join-Path $script:ProjectRoot 'var\logs\processes'
 
 function Assert-File([string]$Path, [string]$Message) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {

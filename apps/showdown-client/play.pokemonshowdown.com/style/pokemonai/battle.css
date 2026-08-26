@@ -1,0 +1,94 @@
+.pokemonai-battle-workbench {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	color: var(--pokemonai-text);
+	background: var(--pokemonai-canvas);
+}
+
+.pokemonai-battle-workbench.side-layout { grid-template-columns: minmax(0, 1fr) var(--pokemonai-command-width); }
+.pokemonai-battle-workbench.stack-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); overflow-y: auto; }
+
+.pokemonai-battle-stage-region {
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	background: rgba(16, 23, 34, 0.08);
+}
+.pokemonai-battle-workbench.side-layout .pokemonai-battle-stage-region { align-items: center; }
+.pokemonai-battle-stage { position: relative; flex: 0 0 auto; overflow: hidden; }
+.pokemonai-battle-stage > div { position: relative; width: 100%; height: 100%; }
+.pokemonai-battle-stage .battle { top: 0; left: 0; border: 0; transform-origin: top left; }
+
+.pokemonai-command-deck {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	background: var(--pokemonai-surface);
+	border-left: 1px solid var(--pokemonai-line);
+	overflow: auto;
+}
+.pokemonai-battle-workbench.stack-layout .pokemonai-command-deck { border-top: 1px solid var(--pokemonai-line); border-left: 0; overflow: visible; }
+
+.pokemonai-command-heading {
+	display: grid;
+	grid-template-columns: auto auto minmax(0, 1fr);
+	align-items: center;
+	gap: 8px;
+	min-height: 48px;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--pokemonai-line);
+}
+.pokemonai-battle-mode-switch { min-height: 30px; padding: 4px 8px; color: #fff; background: var(--pokemonai-accent); border: 0; border-radius: 6px; font-weight: 700; cursor: pointer; }
+.pokemonai-command-heading strong { font-size: 14px; }
+.pokemonai-command-heading span { overflow: hidden; color: var(--pokemonai-muted); font-size: 12px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+
+.pokemonai-command-deck > .battle-controls {
+	position: static;
+	width: auto;
+	min-height: 0;
+	padding: 10px 12px;
+	flex: 0 0 auto;
+	background: var(--pokemonai-surface);
+}
+.pokemonai-command-deck .inline-controls { width: 100%; }
+.pokemonai-command-deck .whatdo { padding: 2px 3px; line-height: 1.4; }
+.pokemonai-command-deck .movecontrols,
+.pokemonai-command-deck .switchcontrols { max-width: none; margin: 0; }
+.pokemonai-command-deck .moveselect,
+.pokemonai-command-deck .switchselect { padding: 5px 3px 2px; font-size: 12px; }
+.pokemonai-command-deck .movemenu,
+.pokemonai-command-deck .switchmenu { margin: 0; padding: 0; }
+.pokemonai-command-deck .movebutton { min-height: 48px; }
+.pokemonai-command-deck .switchmenu button { min-height: 42px; }
+.pokemonai-command-deck .timerbutton { position: static !important; float: right; margin: 0 0 6px 6px; }
+
+.pokemonai-battle-log-drawer { margin: auto 12px 12px; border: 1px solid var(--pokemonai-line); border-radius: var(--pokemonai-radius); background: var(--pokemonai-surface-raised); overflow: hidden; }
+.pokemonai-battle-log-drawer summary { min-height: 40px; padding: 10px 12px; color: var(--pokemonai-text); font-size: 13px; font-weight: 700; cursor: pointer; list-style-position: inside; }
+.pokemonai-battle-log-content { position: relative; height: min(320px, 40vh); border-top: 1px solid var(--pokemonai-line); }
+.pokemonai-battle-log-content .battle-log { position: absolute !important; inset: 0 0 42px !important; width: auto !important; height: auto !important; border: 0; }
+.pokemonai-battle-log-content .battle-log-add { position: absolute !important; right: 0 !important; bottom: 0 !important; left: 0 !important; width: auto !important; }
+
+@media (min-width: 1000px) {
+	.pokemonai-battle-workbench.side-layout .pokemonai-command-deck { width: 400px; }
+}
+
+@media (max-width: 999px) {
+	.pokemonai-battle-workbench.stack-layout .pokemonai-battle-stage-region { min-height: var(--pokemonai-stage-height, auto); }
+	.pokemonai-battle-workbench.stack-layout .pokemonai-command-deck > .battle-controls { min-height: 180px; }
+	.pokemonai-battle-workbench.stack-layout .pokemonai-battle-log-drawer { margin-top: 4px; }
+}
+
+@media (max-width: 699px) {
+	.pokemonai-command-heading { position: sticky; top: 0; z-index: 2; background: var(--pokemonai-surface); }
+	.pokemonai-command-deck > .battle-controls { padding: 8px; }
+	.pokemonai-command-deck .movebutton { min-height: 52px; }
+	.pokemonai-battle-log-content { height: 280px; }
+}

@@ -25,13 +25,6 @@ UPSTREAMS = {
         "markers": ("data/tags.ts", "data/mods/champions/scripts.ts"),
         "copy": ("data",),
     },
-    "foul-play": {
-        "url": "https://github.com/pmariglia/foul-play.git",
-        "lock_key": "foulPlay",
-        "target": "vendor/foul-play",
-        "markers": ("run.py", "fp/battle/state.py"),
-        "copy": (".",),
-    },
 }
 
 

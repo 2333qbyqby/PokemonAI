@@ -1,0 +1,12 @@
+id: agent-runtime
+runtime: node
+entrypoint: services/agent-runtime/dist/src/cli.js
+formats:
+  - champions-ranked-doubles
+  - champions-ranked-singles
+  - champions-ou
+devices:
+  - cpu
+commands:
+  - doctor
+  - serve

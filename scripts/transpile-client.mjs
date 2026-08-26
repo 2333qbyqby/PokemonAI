@@ -9,6 +9,7 @@ const clientRoot = resolve(root, 'apps/showdown-client');
 let ts;
 for (const candidate of [
 	'typescript',
+	resolve(clientRoot, 'node_modules/typescript'),
 	'/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript',
 	'/usr/local/lib/node_modules/typescript',
 ]) {
@@ -21,8 +22,13 @@ if (!ts) throw new Error('TypeScript is required (local dependency or global ins
 
 const entries = process.argv.length > 2 ? process.argv.slice(2) : [
 	'pokemonai-config.ts',
+	'pokemonai/catalog.ts',
+	'pokemonai/navigation.ts',
+	'pokemonai/teams.ts',
+	'pokemonai/team-carousel.tsx',
 	'pokemonai.ts',
 	'panel-mainmenu.tsx',
+	'panel-pokemonai-teams.tsx',
 ];
 for (const entry of entries) {
 	const sourcePath = resolve(clientRoot, 'play.pokemonshowdown.com/src', entry);
@@ -57,7 +63,7 @@ for (const entry of entries) {
 	// are loaded in a shared global scope. Mirror that behaviour for offline/cloud checks.
 	output = output.replace(/^import[\s\S]*?from\s+['"][^'"]+['"];?\s*$/gm, '');
 	output = output.replace(/^import\s+['"][^'"]+['"];?\s*$/gm, '');
-	output = output.replace(/^export\s+(?=(class|function|const|let|var|interface|type)\b)/gm, '');
+	output = output.replace(/^export\s+(?=(?:async\s+)?(?:class|function|const|let|var|interface|type)\b)/gm, '');
 	output = output.replace(/^export\s*\{[^}]*\};?\s*$/gm, '');
 	mkdirSync(dirname(outputPath), {recursive: true});
 	writeFileSync(outputPath, `"use strict";\n${output}`, 'utf8');

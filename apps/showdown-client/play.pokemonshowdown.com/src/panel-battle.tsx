@@ -24,10 +24,10 @@ import { ModifiableValue } from "./battle-tooltips";
 import { Net } from "./client-connection";
 import { BattleLog } from "./battle-log";
 import {
-	challengePokemonAI, findPokemonAIOpponent, showPokemonAIOrientationTip, switchPokemonAIMode,
+	challengePokemonAI, findPokemonAIOpponent, selectPokemonAISetupFormat, showPokemonAIOrientationTip,
 } from "./pokemonai";
-import { PokemonAIApp } from "./pokemonai-app";
 import { pokemonAIAnyTerm, pokemonAITypeName } from "./pokemonai-i18n";
+import { navigatePokemonAI } from "./pokemonai/navigation";
 
 type BattleDesc = {
 	id: RoomID,
@@ -470,7 +470,8 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 		if (!this.base) return;
 		const room = this.props.room;
 		if (!room.width) return;
-		const { battleHeight } = this.chooseLayout();
+		const battleHeight = Config.pokemonaiApp ? this.choosePokemonAIWorkbenchLayout().stageHeight :
+			this.chooseLayout().battleHeight;
 		this.battleHeight = battleHeight;
 		if (battleHeight !== 360) {
 			room.battle?.scene.$frame!.css('transform', `scale(${battleHeight / 360})`);
@@ -486,6 +487,21 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 	} {
 		const room = this.props.room;
 		return PS.chooseBattleLayout(room.width, room.height, PS.prefs.battlelayout);
+	}
+	choosePokemonAIWorkbenchLayout() {
+		const room = this.props.room;
+		const shortRoom = room.height < 560;
+		const sideLayout = room.width >= 1000 || (shortRoom && room.width >= 560);
+		const commandWidth = room.width >= 1000 ? 400 :
+			Math.min(360, Math.max(280, Math.round(room.width * 0.48)));
+		const stageRegionWidth = sideLayout ? Math.max(320, room.width - commandWidth) : room.width;
+		const stageWidth = Math.max(1, Math.min(640, stageRegionWidth));
+		return {
+			sideLayout,
+			commandWidth,
+			stageWidth,
+			stageHeight: Math.round(stageWidth * 360 / 640),
+		};
 	}
 	fastForwardIfRejoining() {
 		const room = this.props.room;
@@ -1301,8 +1317,13 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 			</p>
 			{room.side ? (
 				<p>
-					<button class="button" data-cmd="/close">
-						<strong>返回首页</strong><br /><small>关闭本场对战</small>
+					<button
+						class="button"
+						onClick={() => {
+							void navigatePokemonAI('home').then(() => PS.leave(room.id));
+						}}
+					>
+						<strong>结束对战</strong><br /><small>关闭本场对战并回首页</small>
 					</button> {}
 					{aiOpponent ? <>
 						<button
@@ -1312,10 +1333,16 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 								challengePokemonAI(aiOpponent);
 							}}
 						>
-							<strong>同难度再来一局</strong><br /><small>{aiOpponent.label}</small>
+							<strong>按当前设置再来一局</strong><br /><small>{aiOpponent.label}</small>
 						</button> {}
-						<button class="button" data-href="ai-battle">
-							<strong>更换难度</strong><br /><small>选择其他 AI</small>
+						<button
+							class="button"
+							onClick={() => {
+								selectPokemonAISetupFormat(aiOpponent.formatId);
+								void navigatePokemonAI('battle').then(() => PS.leave(room.id));
+							}}
+						>
+							<strong>更换规则或队伍</strong><br /><small>返回对战准备</small>
 						</button>
 					</> : <button class="button" data-cmd={`/closeand /challenge ${room.battle.farSide.id},${room.battle.tier}`}>
 						<strong>再次挑战</strong><br /><small>关闭本场对战</small>
@@ -1355,48 +1382,43 @@ class BattlePanel extends PSRoomPanel<BattleRoom> {
 		const hardcoreStyle = room.battle?.hardcoreMode ? <style
 			dangerouslySetInnerHTML={{ __html: `#${id} .battle .turn, #${id} .battle-history { display: none !important; }` }}
 		></style> : null;
-		const { layout, battleHeight, battleWidth, overlayControls } = this.chooseLayout();
-		const overlayVersion = overlayControls && !!room.battle && !!room.side && !!room.request && !room.battle.ended;
-		const pokemonAILandscape = Math.max(room.width, innerWidth) >= 700 && room.height <= 500 &&
-			matchMedia('(orientation: landscape)').matches;
-
-		if (pokemonAILandscape) {
-			const stageWidth = Math.min(Math.floor(room.width * 0.65), Math.floor(room.height * 640 / 360));
-			const stageHeight = Math.floor(stageWidth * 360 / 640);
-			const stageScale = stageHeight / 360;
-			this.battleHeight = stageHeight;
-			if (room.battle?.scene.$frame) room.battle.scene.$frame.css('transform', `scale(${stageScale})`);
+		if (Config.pokemonaiApp) {
+			const workbench = this.choosePokemonAIWorkbenchLayout();
 			return <PSPanelWrapper room={room} focusClick noScroll="hidden">
 				{hardcoreStyle}
-				<div class="pokemonai-landscape-battle">
-					<div class="pokemonai-battle-stage" style={`width:${stageWidth}px;height:${stageHeight}px`}>
-						<BattleDiv room={room} />
+				<div
+					class={`pokemonai-battle-workbench${workbench.sideLayout ? ' side-layout' : ' stack-layout'}`}
+					style={`--pokemonai-command-width:${workbench.commandWidth}px`}
+				>
+					<div class="pokemonai-battle-stage-region">
+						<div class="pokemonai-battle-stage" style={`width:${workbench.stageWidth}px;height:${workbench.stageHeight}px`}>
+							<BattleDiv room={room} />
+						</div>
 					</div>
-					<aside class="pokemonai-command-deck" style={`left:${stageWidth}px`}>
+					<aside class="pokemonai-command-deck">
 						<div class="pokemonai-command-heading">
-							<button
-								class="pokemonai-battle-mode-switch"
-								onClick={ev => switchPokemonAIMode(
-									PokemonAIApp.isAI() ? 'online' : 'ai', ev.currentTarget as HTMLButtonElement
-								)}
-								aria-label={`当前${PokemonAIApp.profile.label}，切换模式`}
-							>{PokemonAIApp.profile.label}</button>
 							<strong>战斗指令</strong><span>{pokemonAIAnyTerm(room.battle?.nearSide.active[0]?.name || '')}</span>
 						</div>
-						<div class="battle-controls wide-controls" role="complementary" aria-label="战斗指令">
+						<div class={`battle-controls${room.width >= 700 ? ' wide-controls' : ''}`} role="complementary" aria-label="战斗指令">
 							{(room.battle && !room.battle.ended && room.request &&
 								room.battle.mySide.id === PS.user.userid) && <TimerButton room={room} top={0} />}
 							{this.renderControls()}
 							{this.renderConnectError()}
 						</div>
+						<details class="pokemonai-battle-log-drawer">
+							<summary><i class="fa fa-list" aria-hidden></i> 对战日志</summary>
+							<div class="pokemonai-battle-log-content">
+								<ChatLog class="battle-log hasuserlist" room={room} noSubscription hasPreempt />
+								<ChatTextEntry room={room} onMessage={this.send} onKey={this.onKey} tinyLayout={room.width < 700} />
+							</div>
+						</details>
 					</aside>
-					<details class="pokemonai-battle-log-drawer">
-						<summary><i class="fa fa-list" aria-hidden></i> 对战日志</summary>
-						<ChatLog class="battle-log hasuserlist" room={room} noSubscription hasPreempt />
-					</details>
 				</div>
 			</PSPanelWrapper>;
 		}
+
+		const { layout, battleHeight, battleWidth, overlayControls } = this.chooseLayout();
+		const overlayVersion = overlayControls && !!room.battle && !!room.side && !!room.request && !room.battle.ended;
 
 		if (layout === 'scrolling') {
 			// low-width-low-height layout

@@ -1,4 +1,8 @@
 .runtime/
+/node_modules/
+/packages/pokemonai-engine/dist/
+/services/agent-runtime/dist/
+*.tsbuildinfo
 apps/showdown-client/play.pokemonshowdown.com/pokemonai-source.tar.gz
 .cache/
 .venv/
@@ -8,6 +12,7 @@ apps/showdown-client/play.pokemonshowdown.com/pokemonai-source.tar.gz
 /data/battles/
 /data/test-results/
 /data/team-sources/cache/
+/var/
 /artifacts/
 *.pid
 *.log
@@ -17,6 +22,5 @@ __pycache__/
 htmlcov/
 vendor/pokemon-showdown/config/config.js
 vendor/pokemon-showdown/logs/
-vendor/foul-play/logs/
 apps/showdown-client/node_modules/
 vendor/pokemon-showdown/node_modules/

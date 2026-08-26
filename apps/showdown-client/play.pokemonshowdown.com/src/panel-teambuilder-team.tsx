@@ -296,14 +296,17 @@ class TeamPanel extends PSRoomPanel<TeamRoom> {
 	override render() {
 		const { room } = this.props;
 		const team = room.getTeam();
+		const setupRoom = PS.rooms['ai-battle'] ? 'ai-battle' : PS.rooms['ai-teams'] ? 'ai-teams' : '';
+		const backRoom = room.args?.pokemonAIReturn === true && setupRoom ? setupRoom : 'teambuilder';
+		const backLabel = backRoom === 'teambuilder' ? 'Teams' : '返回对战准备';
 		if (!team || room.forceReload) {
 			if (room.forceReload) {
 				room.forceReload = false;
 				room.update(null);
 			}
 			return <PSPanelWrapper room={room}>
-				<a class="button" href="teambuilder" data-target="replace">
-					<i class="fa fa-chevron-left" aria-hidden></i> List
+				<a class="button" href={backRoom} data-target="replace">
+					<i class="fa fa-chevron-left" aria-hidden></i> {backRoom === 'teambuilder' ? 'List' : backLabel}
 				</a>
 				<p class="error">
 					{room.teamDeleted ? 'Team was deleted' : 'Team doesn\'t exist'}
@@ -314,8 +317,8 @@ class TeamPanel extends PSRoomPanel<TeamRoom> {
 		const unsaved = team.uploaded && team.uploadedPackedTeam ? team.uploadedPackedTeam !== team.packedTeam : false;
 		return <PSPanelWrapper room={room}>
 			<div class="team-pad">
-				<a class="button" href="teambuilder" data-target="replace">
-					<i class="fa fa-chevron-left" aria-hidden></i> Teams
+				<a class="button" href={backRoom} data-target="replace">
+					<i class="fa fa-chevron-left" aria-hidden></i> {backLabel}
 				</a> {}
 				{team.uploaded ? (
 					<>

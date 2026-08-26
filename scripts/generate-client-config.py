@@ -29,7 +29,10 @@ def main() -> None:
         }
     ]
     default_format = str(raw.get("default_format", formats[0]["id"]))
-    opponents = raw["opponents"]
+    # Optional opponents are supplied by the runtime catalogue only after their
+    # backend passes installation and health checks. Keeping them out of the
+    # static fallback prevents challenges to an unavailable username.
+    opponents = [item for item in raw["opponents"] if not item.get("optional", False)]
     lines = [
         "/** Generated from config/agents.yaml. Do not edit by hand. */",
         "/* eslint-disable @stylistic/max-len */",
@@ -38,8 +41,8 @@ def main() -> None:
         "\tteamPreview: string; openTeamSheets: boolean; description: string; requiresTeam: boolean;",
         "}",
         "export interface PokemonAIOpponent {",
-        "\tid: string; label: string; username: string; description: string;",
-        "\tformatId: string; difficulty: number; style: string;",
+        "\tid: string; label: string; username: string; formatId: string;",
+        "\tavailability?: string; reason?: string;",
         "}",
         "export const PokemonAIConfig = {",
         f"\tdefaultFormat: {quote(default_format)},",
@@ -65,9 +68,8 @@ def main() -> None:
         lines.append(
             "\t\t{ "
             f"id: {quote(str(opponent['id']))}, label: {quote(str(opponent['label']))}, "
-            f"username: {quote(str(opponent['username']))}, description: {quote(str(opponent.get('description', '')))}, "
-            f"formatId: {quote(str(opponent.get('format_id', legacy_id)))}, "
-            f"difficulty: {int(opponent.get('difficulty', 1))}, style: {quote(str(opponent.get('style', 'balanced')))} "
+            f"username: {quote(str(opponent['username']))}, "
+            f"formatId: {quote(str(opponent.get('format_id', legacy_id)))} "
             "},"
         )
     lines.extend([

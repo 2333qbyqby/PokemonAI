@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pokemonai-core"
+version = "0.2.0"
+description = "PokemonAI backend registry, runtime control, team catalogue, and arena"
+requires-python = ">=3.12,<3.14"
+license = { text = "AGPL-3.0-only" }
+dependencies = ["PyYAML==6.0.2"]
+
+[project.optional-dependencies]
+test = ["pytest==8.3.5"]
+
+[project.scripts]
+pokemonai = "pokemonai_core.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pokemonai_core"]

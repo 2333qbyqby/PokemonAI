@@ -1,54 +1,35 @@
-# 上游升级流程
+# 升级锁定依赖与 Regulation
 
-第一版禁止依赖自动漂移。升级前创建分支并记录 `config/runtime-lock.json`、
-`.gitmodules` 和当前 submodule/tree 提交。
+PokémonAI 的机制结果由锁定版 Showdown 决定。升级时一次只改一个上游，并记录新旧提交。
 
-## Showdown Client subtree
-
-```bash
-git remote add showdown-client https://github.com/smogon/pokemon-showdown-client.git
-git fetch showdown-client
-git subtree pull --prefix apps/showdown-client showdown-client <new-commit> --squash
-```
-
-解决冲突时只保留 PokémonAI 在 `panel-mainmenu.tsx`、`panel-battle.tsx`、
-`pokemonai.ts`、`pokemonai-config.ts` 和 `testclient-new.html` 的有意修改。更新
-`runtime-lock.json` 和第三方声明中的提交。
-
-## Showdown Server / Foul Play submodule
-
-```bash
-git -C vendor/pokemon-showdown fetch origin
-git -C vendor/pokemon-showdown checkout <new-commit>
-git -C vendor/foul-play fetch origin
-git -C vendor/foul-play checkout <new-commit>
-git add vendor/pokemon-showdown vendor/foul-play
-```
-
-不要直接在 submodule 内保留整合补丁；本项目通过配置、启动参数和独立适配器集成。
-
-## poke-env Champions fork
-
-VGC 服务不能随意改回通用 PyPI poke-env。先在候选 fork 中确认新的 Champions 形态和
-招式已经进入 `src/poke_env/data/static/`，再把**完整 commit SHA**同时写入：
-
-- `services/baseline-ai/pyproject.toml` 的 archive URL；
-- `config/runtime-lock.json` 的 `pokeEnv`；
-- `THIRD_PARTY_NOTICES.md`。
-
-从零安装后运行 `champions_compat.py` 的 marker 测试，并至少用包含新 Mega 形态的队伍
-完成一场真实对局。不要固定到 `vgc-bench` 等可移动分支名。
-
-## Python / Rust / Node 依赖
-
-更新锁定版本与官方 URL 后，删除一个专门的测试 checkout 中的 `.runtime/`，从零运行：
+## Showdown
 
 ```powershell
-.\scripts\bootstrap.ps1
-.\scripts\test.ps1 -Integration
-.\scripts\test-prod.ps1
+git -C vendor/pokemon-showdown fetch origin
+git -C vendor/pokemon-showdown checkout <commit>
 ```
 
-检查四场对战均为正常终局、没有非法行动、日志路径正确、专家确实打印 MCTS 搜索和
-Mega进化、特性相关决策。最后在临时 VPS 从空环境重建并用手机蜂窝网络验收 HTTPS、401、
-WebSocket 与 8000 不可公网访问，再合并升级提交。
+同步修改 [config/runtime-lock.json](../config/runtime-lock.json) 和 submodule 指针，然后运行：
+
+```powershell
+.\scripts\bootstrap.ps1 -Force
+.\scripts\test.ps1 -Integration
+```
+
+必须复查三个 Format Pack 的最终 RuleTable、队伍校验、`Battle.toJSON()/fromJSON()` 一致性和真实对局。
+
+## Regulation
+
+更新 Champions Regulation 时：
+
+1. 在锁定 Showdown 提交中确认目标格式、机制数据和 RuleTable。
+2. 修改 `packages/pokemonai-engine/src/formats.ts` 与 `config/agents.yaml`。
+3. 更新 Meta source 的 upstream format 映射和队伍池。
+4. 重新生成客户端配置、队伍索引并发布匹配的新 Meta 快照。
+5. 运行三格式单元、属性、集成和 Arena 评测。
+
+环境名称不得写入启发式策略。公开格式 ID、持久化键或用户队伍字段需要改动时，先增加读取旧值和可重复迁移测试，验证成功后再清理旧数据。
+
+## 客户端与静态数据
+
+Showdown 客户端和 PokéAPI 静态中文数据分别按其固定提交升级。更新后执行完整客户端构建、TypeScript、ESLint、CSP、SID 生命周期和移动端截图检查。不得在浏览器运行时新增 PokéAPI 请求。

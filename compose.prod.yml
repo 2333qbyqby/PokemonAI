@@ -10,15 +10,13 @@ services:
       ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in .env}
       BASIC_AUTH_USER: ${BASIC_AUTH_USER:?Set BASIC_AUTH_USER in .env}
       BASIC_AUTH_HASH: ${BASIC_AUTH_HASH:?Set BASIC_AUTH_HASH in .env}
-    ports:
-      - "80:80"
-      - "443:443"
+    ports: ["80:80", "443:443"]
     volumes:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      showdown:
-        condition: service_healthy
+      showdown: {condition: service_healthy}
+      control-plane: {condition: service_healthy}
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/healthz"]
       interval: 15s
@@ -34,10 +32,8 @@ services:
       POKEMONAI_SHOWDOWN_BIND: 0.0.0.0
       POKEMONAI_SHOWDOWN_PORT: 8000
       POKEMONAI_SHOWDOWN_LOGS: /app/logs
-    volumes:
-      - ./data/battles:/app/logs
-    expose:
-      - "8000"
+    volumes: ["./var/logs/battles:/app/logs"]
+    expose: ["8000"]
     healthcheck:
       test: ["CMD", "node", "-e", "const n=require('node:net');const s=n.connect(8000,'127.0.0.1',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1))"]
       interval: 10s
@@ -45,41 +41,53 @@ services:
       retries: 12
     restart: unless-stopped
 
-  baseline-ai:
+  control-plane:
     build:
       context: .
-      dockerfile: deploy/baseline.Dockerfile
-    depends_on:
-      showdown:
-        condition: service_healthy
-    volumes:
-      - ./data/agents/baseline:/data
-    healthcheck:
-      test: ["CMD", "python", "-c", "import socket;s=socket.create_connection(('showdown',8000),2);s.close()"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    restart: unless-stopped
-
-  expert-ai:
-    build:
-      context: .
-      dockerfile: deploy/expert.Dockerfile
-      args:
-        RUST_VERSION: "1.97.1"
-        RUSTUP_VERSION: "1.29.0"
+      dockerfile: deploy/control.Dockerfile
     environment:
       POKEMONAI_SHOWDOWN_WS: ws://showdown:8000/showdown/websocket
-    depends_on:
-      showdown:
-        condition: service_healthy
-    volumes:
-      - ./data/agents/foul-play:/data
+      POKEMONAI_WEB_ROOT: /tmp/unused
+    volumes: ["./var:/opt/pokemonai/var"]
+    expose: ["8080"]
     healthcheck:
-      test: ["CMD", "python", "-c", "import socket;s=socket.create_connection(('showdown',8000),2);s.close()"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/healthz',timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  agent-doubles:
+    build:
+      context: .
+      dockerfile: deploy/agent.Dockerfile
+    command: ["node", "services/agent-runtime/dist/src/cli.js", "serve", "--config", "/opt/pokemonai/var/run/instances/ranked-doubles-ai.json"]
+    depends_on:
+      showdown: {condition: service_healthy}
+      control-plane: {condition: service_healthy}
+    volumes: ["./var:/opt/pokemonai/var"]
+    restart: unless-stopped
+
+  agent-singles:
+    build:
+      context: .
+      dockerfile: deploy/agent.Dockerfile
+    command: ["node", "services/agent-runtime/dist/src/cli.js", "serve", "--config", "/opt/pokemonai/var/run/instances/ranked-singles-ai.json"]
+    depends_on:
+      showdown: {condition: service_healthy}
+      control-plane: {condition: service_healthy}
+    volumes: ["./var:/opt/pokemonai/var"]
+    restart: unless-stopped
+
+  agent-ou:
+    build:
+      context: .
+      dockerfile: deploy/agent.Dockerfile
+    command: ["node", "services/agent-runtime/dist/src/cli.js", "serve", "--config", "/opt/pokemonai/var/run/instances/ou-ai.json"]
+    depends_on:
+      showdown: {condition: service_healthy}
+      control-plane: {condition: service_healthy}
+    volumes: ["./var:/opt/pokemonai/var"]
     restart: unless-stopped
 
 volumes:

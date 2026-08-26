@@ -1,120 +1,83 @@
-default_format: champions-reg-mb
+default_format: champions-ranked-doubles
 source_url: /pokemonai-source.tar.gz
 team_sources_path: config/team-sources.yaml
-team_library_path: data/team-library/index.json
+team_library_path: var/generated/team-library/index.json
 
 formats:
-  - id: champions-reg-mb
-    label: Pokémon Champions VGC 2026 Reg M-B
-    showdown_format: gen9championsvgc2026regmb
+  - id: champions-ranked-doubles
+    label: Champions 排位 64 双打
+    mechanics: champions
+    regulation: M-B
+    base_showdown_format: gen9championsvgc2026regmb
+    custom_rules: ["!Open Team Sheets"]
+    showdown_format: "gen9championsvgc2026regmb@@@!Open Team Sheets"
     game_type: doubles
+    roster_size: 6
+    bring_size: 4
+    active_slots: 2
     team_preview: bring6_pick4
-    open_team_sheets: true
-    team_pool: champions-reg-mb
-    description: 六选四双打、开放队伍表，面向 Pokémon Champions 的 VGC 对练。
-  - id: gen9-random
-    label: Gen 9 Random Battle
-    showdown_format: gen9randombattle
-    game_type: singles
-    team_preview: none
     open_team_sheets: false
-    description: 保留原项目的随机单打模式。
+    level_rule: Adjust Level = 50
+    team_pool: champions-ranked-doubles
+    meta_bindings: [champions-battle-data, smogon, limitless, showdown-replays]
+    policy_family: ranked-doubles
+    description: 闭队表 BO1，六选四、双首发，Champions Regulation M-B。
+  - id: champions-ranked-singles
+    label: Champions 排位 63 单打
+    mechanics: champions
+    regulation: M-B
+    base_showdown_format: gen9championsbssregmb
+    custom_rules: []
+    showdown_format: gen9championsbssregmb
+    game_type: singles
+    roster_size: 6
+    bring_size: 3
+    active_slots: 1
+    team_preview: bring6_pick3
+    open_team_sheets: false
+    level_rule: Adjust Level = 50
+    team_pool: champions-ranked-singles
+    meta_bindings: [champions-battle-data, smogon, showdown-replays]
+    policy_family: ranked-singles
+    description: 闭队表 BO1，六选三、单首发，Champions Regulation M-B。
+  - id: champions-ou
+    label: Champions 66 OU 单打
+    mechanics: champions
+    regulation: OU
+    base_showdown_format: gen9championsou
+    custom_rules: []
+    showdown_format: gen9championsou
+    game_type: singles
+    roster_size: 6
+    bring_size: 6
+    active_slots: 1
+    team_preview: full_team
+    open_team_sheets: false
+    level_rule: Adjust Level = 50
+    team_pool: champions-ou
+    meta_bindings: [smogon, showdown-replays]
+    policy_family: ou-singles
+    description: 闭队表 BO1，六只全部参战，Champions OU 禁限。
 
 opponents:
-  - id: vgc-1
-    label: VGC Lv.1
-    username: PokemonAI VGC 1
-    backend: pokemonai.vgc
-    format_id: champions-reg-mb
-    difficulty: 1
-    style: relaxed
-    description: 只做基本属性、伤害与合法目标判断，在合理行动中高温抽样。
-  - id: vgc-2
-    label: VGC Lv.2
-    username: PokemonAI VGC 2
-    backend: pokemonai.vgc
-    format_id: champions-reg-mb
-    difficulty: 2
-    style: relaxed
-    description: 会使用 Protect、基础速度控制和简单协同。
-  - id: vgc-3
-    label: VGC Lv.3
-    username: PokemonAI VGC 3
-    backend: pokemonai.vgc
-    format_id: champions-reg-mb
-    difficulty: 3
-    style: balanced
-    description: 具备基础双打联合行动评价。
-  - id: vgc-4
-    label: VGC Lv.4
-    username: PokemonAI VGC 4
-    backend: pokemonai.vgc
-    format_id: champions-reg-mb
-    difficulty: 4
-    style: balanced
-    description: 更重视击杀、换位、顺风和戏法空间。
-  - id: vgc-5
-    label: VGC Lv.5
-    username: PokemonAI VGC 5
-    backend: pokemonai.vgc
-    format_id: champions-reg-mb
-    difficulty: 5
-    style: balanced
-    description: 能识别常见 Fake Out、重定向与队友强化组合。
-  - id: vgc-6
-    label: VGC Lv.6
-    username: PokemonAI VGC 6
-    backend: pokemonai.vgc
-    format_id: champions-reg-mb
-    difficulty: 6
-    style: aggressive
-    description: 使用更严格的候选剪枝和风险评价。
-  - id: vgc-7
-    label: VGC Lv.7
-    username: PokemonAI VGC 7
-    backend: pokemonai.vgc
-    format_id: champions-reg-mb
-    difficulty: 7
-    style: balanced
-    description: 低温选择，重视速度顺序和资源保存。
-  - id: vgc-8
-    label: VGC Lv.8
-    username: PokemonAI VGC 8
-    backend: pokemonai.vgc
-    format_id: champions-reg-mb
-    difficulty: 8
-    style: expert
-    description: 当前 CPU 版最高强度，使用完整联合动作排序。
-
-  - id: random-easy
-    label: 随机单打·简单
-    username: PokemonAI Easy
-    backend: poke_env.random
-    format_id: gen9-random
-    difficulty: 1
-    description: 随机选择合法行动，适合熟悉操作。
-  - id: random-normal
-    label: 随机单打·普通
-    username: PokemonAI Normal
-    backend: poke_env.max_base_power
-    format_id: gen9-random
-    difficulty: 3
-    description: 偏好高威力进攻招式。
-  - id: random-hard
-    label: 随机单打·困难
-    username: PokemonAI Hard
-    backend: poke_env.simple_heuristics
-    format_id: gen9-random
-    difficulty: 5
-    description: 考虑属性、换人、场地、强化和太晶。
-  - id: random-expert
-    label: 随机单打·专家
-    username: PokemonAI Expert
-    backend: foul_play
-    format_id: gen9-random
-    difficulty: 8
-    description: 使用 Foul Play 的 MCTS 搜索。
-    options:
-      search_time_ms: 500
-      search_parallelism: 1
-      search_threads: 2
+  - id: ranked-doubles-ai
+    label: AI 对手
+    username: PokemonAI Doubles
+    backend: agent-runtime/strong
+    format_id: champions-ranked-doubles
+    difficulty: 10
+    style: adaptive
+  - id: ranked-singles-ai
+    label: AI 对手
+    username: PokemonAI Singles
+    backend: agent-runtime/strong
+    format_id: champions-ranked-singles
+    difficulty: 10
+    style: adaptive
+  - id: ou-ai
+    label: AI 对手
+    username: PokemonAI OU
+    backend: agent-runtime/strong
+    format_id: champions-ou
+    difficulty: 10
+    style: adaptive

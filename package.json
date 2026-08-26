@@ -1,0 +1,16 @@
+{
+  "name": "pokemonai-workspace",
+  "private": true,
+  "workspaces": [
+    "packages/pokemonai-engine",
+    "services/agent-runtime"
+  ],
+  "scripts": {
+    "build:agent": "tsc -b packages/pokemonai-engine services/agent-runtime",
+    "test:agent": "npm run build:agent && node --test packages/pokemonai-engine/dist/test/*.test.js services/agent-runtime/dist/test/*.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.7",
+    "typescript": "5.8.3"
+  }
+}

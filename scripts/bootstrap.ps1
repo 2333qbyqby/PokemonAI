@@ -1,7 +1,4 @@
-param(
-    [switch]$SkipExpert,
-    [switch]$Force
-)
+param([switch]$Force)
 
 . (Join-Path $PSScriptRoot 'common.ps1')
 
@@ -22,12 +19,10 @@ function Assert-Sha256([string]$Path, [string]$Expected) {
 $lock = Get-Content -LiteralPath (Join-Path $ProjectRoot 'config\runtime-lock.json') -Raw | ConvertFrom-Json
 New-Item -ItemType Directory -Force -Path $RuntimeRoot, (Join-Path $RuntimeRoot 'downloads'), (Join-Path $RuntimeRoot 'cache') | Out-Null
 
-Write-Host '[1/7] Initializing pinned submodules when a Git checkout is available'
+Write-Host '[1/7] Initializing pinned Showdown source'
 if (Test-Path -LiteralPath (Join-Path $ProjectRoot '.git')) {
-    git -C $ProjectRoot submodule update --init --recursive
+    git -C $ProjectRoot submodule update --init vendor/pokemon-showdown
     if ($LASTEXITCODE -ne 0) { throw 'git submodule update failed' }
-} else {
-    Write-Host 'Source archive detected; missing upstream files will be repaired from runtime-lock.json.'
 }
 
 Write-Host '[2/7] Installing project-local Node.js'
@@ -49,7 +44,7 @@ if ((-not (Test-Path -LiteralPath $NodeExe)) -or $Force) {
     Remove-Item -LiteralPath $extractRoot -Recurse -Force
 }
 
-Write-Host '[3/7] Installing project-local uv and Python'
+Write-Host '[3/7] Installing project-local Python'
 $uvZip = Join-Path $RuntimeRoot "downloads\uv-$($lock.uv.version)-windows-x64.zip"
 $uvChecksum = Join-Path $RuntimeRoot "downloads\uv-$($lock.uv.version)-windows-x64.zip.sha256"
 Get-RemoteFile $lock.uv.windowsX64Url $uvZip
@@ -66,83 +61,37 @@ $env:UV_PYTHON_INSTALL_DIR = Join-Path $RuntimeRoot 'python'
 & $UvExe python install $lock.python
 if ($LASTEXITCODE -ne 0) { throw 'uv python install failed' }
 
-Write-Host '[4/7] Creating isolated Python environments'
-$baselineVenv = Join-Path $RuntimeRoot 'venvs\baseline-ai'
-if ((-not (Test-Path -LiteralPath $BaselinePython)) -or $Force) {
-    & $UvExe venv --python $lock.python --clear $baselineVenv
-    if ($LASTEXITCODE -ne 0) { throw 'Could not create baseline-ai environment' }
+Write-Host '[4/7] Creating control-plane environment'
+$controlVenv = Join-Path $RuntimeRoot 'venvs\control-plane'
+if ((-not (Test-Path -LiteralPath $ControlPython)) -or $Force) {
+    & $UvExe venv --python $lock.python --clear $controlVenv
+    if ($LASTEXITCODE -ne 0) { throw 'Could not create control-plane environment' }
 }
-& $UvExe pip install --python $BaselinePython -e "$ProjectRoot\services\baseline-ai[test]"
-if ($LASTEXITCODE -ne 0) { throw 'Could not install baseline-ai dependencies' }
+& $UvExe pip install --python $ControlPython -e "$ProjectRoot\packages\pokemonai-core[test]"
+if ($LASTEXITCODE -ne 0) { throw 'Could not install control-plane dependencies' }
 
-if (-not $SkipExpert) {
-    $foulPlayVenv = Join-Path $RuntimeRoot 'venvs\foul-play'
-    if ((-not (Test-Path -LiteralPath $FoulPlayPython)) -or $Force) {
-        & $UvExe venv --python $lock.python --clear $foulPlayVenv
-        if ($LASTEXITCODE -ne 0) { throw 'Could not create Foul Play environment' }
-    }
-    & $FoulPlayPython -c 'import poke_engine'
-    $hasPokeEngine = $LASTEXITCODE -eq 0
-    if (-not $hasPokeEngine) {
-        $wheel = Get-ChildItem -Path (Join-Path $ProjectRoot 'artifacts\wheels') -Filter 'poke_engine-0.0.48-*.whl' -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($wheel) {
-            & $UvExe pip install --python $FoulPlayPython $wheel.FullName
-        } else {
-            Write-Host 'No prebuilt poke-engine wheel found; preparing project-local Rust.'
-            $rustupExe = Join-Path $RuntimeRoot 'rustup-init.exe'
-            $rustupChecksum = Join-Path $RuntimeRoot 'downloads\rustup-init.exe.sha256'
-            Get-RemoteFile $lock.rustup.windowsX64Url $rustupExe
-            Get-RemoteFile $lock.rustup.checksumUrl $rustupChecksum
-            $rustupExpected = ((Get-Content -LiteralPath $rustupChecksum -Raw).Trim() -split '\s+')[0]
-            Assert-Sha256 $rustupExe $rustupExpected
-            $env:RUSTUP_HOME = Join-Path $RuntimeRoot 'rustup'
-            $env:CARGO_HOME = Join-Path $RuntimeRoot 'cargo'
-            $env:PATH = "$env:CARGO_HOME\bin;$env:PATH"
-            if (-not (Test-Path -LiteralPath (Join-Path $env:CARGO_HOME 'bin\cargo.exe'))) {
-                & $rustupExe -y --no-modify-path --profile minimal --default-toolchain $lock.rust
-                if ($LASTEXITCODE -ne 0) { throw 'Project-local Rust installation failed' }
-            }
-            if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) {
-                throw 'Building poke-engine on Windows requires MSVC. Use the prebuilt project Release wheel on machines without it.'
-            }
-            & $UvExe pip install --python $FoulPlayPython `
-                'poke-engine==0.0.48' '--config-settings=build-args=--features poke-engine/terastallization --no-default-features'
-        }
-        if ($LASTEXITCODE -ne 0) { throw 'Could not install poke-engine' }
-    }
-    & $UvExe pip install --python $FoulPlayPython `
-        'requests==2.33.0' 'websockets==14.1' 'python-dateutil==2.8.0' 'PyYAML==6.0.3'
-    if ($LASTEXITCODE -ne 0) { throw 'Could not install Foul Play dependencies' }
-}
-
-Write-Host '[5/7] Repairing pinned upstream data and generating client configuration'
-& $BaselinePython (Join-Path $ProjectRoot 'scripts\ensure-upstreams.py') --project-root $ProjectRoot
+Write-Host '[5/7] Building the agent and Showdown'
+& $ControlPython (Join-Path $ProjectRoot 'scripts\ensure-upstreams.py') --project-root $ProjectRoot
 if ($LASTEXITCODE -ne 0) { throw 'Pinned upstream repair failed' }
-
-Write-Host 'Generating client configuration'
-& $BaselinePython (Join-Path $ProjectRoot 'scripts\generate-client-config.py') `
-    --config (Join-Path $ProjectRoot 'config\agents.yaml') `
-    --output (Join-Path $ProjectRoot 'apps\showdown-client\play.pokemonshowdown.com\src\pokemonai-config.ts')
-if ($LASTEXITCODE -ne 0) { throw 'Client configuration generation failed' }
-
-Write-Host '[6/7] Installing and building Showdown server'
-Copy-Item -LiteralPath (Join-Path $ProjectRoot 'config\showdown-config.js') `
-    -Destination (Join-Path $ProjectRoot 'vendor\pokemon-showdown\config\config.js') -Force
+Invoke-LocalNpm -WorkingDirectory $ProjectRoot ci
+Invoke-LocalNpm -WorkingDirectory $ProjectRoot run build:agent
+Copy-Item -LiteralPath (Join-Path $ProjectRoot 'config\showdown-config.js') -Destination (Join-Path $ProjectRoot 'vendor\pokemon-showdown\config\config.js') -Force
 Invoke-LocalNpm -WorkingDirectory (Join-Path $ProjectRoot 'vendor\pokemon-showdown') ci --ignore-scripts
 Invoke-LocalNodeScript -WorkingDirectory (Join-Path $ProjectRoot 'vendor\pokemon-showdown') -Script 'build'
 
-Write-Host 'Validating and rebuilding the team library against the built Showdown'
-& $BaselinePython (Join-Path $ProjectRoot 'scripts\team-library.py') build --project-root $ProjectRoot
+Write-Host '[6/7] Generating formats and team library'
+& $ControlPython (Join-Path $ProjectRoot 'scripts\generate-client-config.py') --config (Join-Path $ProjectRoot 'config\agents.yaml') --output (Join-Path $ProjectRoot 'apps\showdown-client\play.pokemonshowdown.com\src\pokemonai-config.ts')
+if ($LASTEXITCODE -ne 0) { throw 'Client configuration generation failed' }
+& $ControlPython (Join-Path $ProjectRoot 'scripts\team-library.py') build --project-root $ProjectRoot
 if ($LASTEXITCODE -ne 0) { throw 'Team library build failed' }
 
-Write-Host '[7/7] Installing and building Showdown client'
+Write-Host '[7/7] Building Showdown client'
 Invoke-LocalNpm -WorkingDirectory (Join-Path $ProjectRoot 'apps\showdown-client') ci
 $clientCacheRoot = Join-Path $ProjectRoot 'apps\showdown-client\caches'
 $clientServerCache = Join-Path $clientCacheRoot 'pokemon-showdown'
 New-Item -ItemType Directory -Force -Path $clientCacheRoot | Out-Null
 if (-not (Test-Path -LiteralPath $clientServerCache)) {
-    New-Item -ItemType Junction -Path $clientServerCache `
-        -Target (Join-Path $ProjectRoot 'vendor\pokemon-showdown') | Out-Null
+    New-Item -ItemType Junction -Path $clientServerCache -Target (Join-Path $ProjectRoot 'vendor\pokemon-showdown') | Out-Null
 }
 $oldPinnedServer = $env:POKEMON_SHOWDOWN_PINNED
 try {
@@ -151,7 +100,7 @@ try {
 } finally {
     $env:POKEMON_SHOWDOWN_PINNED = $oldPinnedServer
 }
-
+Invoke-LocalNodeScript -WorkingDirectory $ProjectRoot -Script (Join-Path $ProjectRoot 'scripts\transpile-client.mjs')
 & (Join-Path $PSScriptRoot 'package-source.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Source archive generation failed' }
 

@@ -1,0 +1,6 @@
+format: champions-ranked-doubles
+opponent: ranked-doubles-ai
+games: 1000
+seed: 42
+timeoutSeconds: 120
+showdown: ws://127.0.0.1:8000/showdown/websocket

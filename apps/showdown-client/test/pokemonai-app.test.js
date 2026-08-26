@@ -70,6 +70,15 @@ describe('PokemonAI application mode bootstrap', () => {
 		assert.equal(online.PokemonAIApp.profile.allowedFormats[0], 'gen9randombattle');
 	});
 
+	it('allocates numbered local trainer names and localizes their display labels', () => {
+		const app = makeContext('?mode=ai').api.PokemonAIApp;
+		assert.equal(app.localTrainerName(), 'Local Player 1');
+		assert.equal(app.displayTrainerName(app.localTrainerName()), '本地玩家1');
+		assert.equal(app.nextLocalTrainerName(), 'Local Player 2');
+		assert.equal(app.isLocalTrainerName('Local Player 2'), true);
+		assert.equal(app.isLocalTrainerName('Official User'), false);
+	});
+
 	it('stores, reads, and clears SID only through the dedicated local key', () => {
 		const fixture = makeContext('?mode=online');
 		assert.equal(fixture.api.PokemonAIApp.saveOfficialSid('  secret-sid  '), true);

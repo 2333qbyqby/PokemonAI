@@ -1,14 +1,24 @@
-param(
-    [switch]$NoBrowser,
-    [switch]$SkipExpert
-)
+param([switch]$NoBrowser)
 
 . (Join-Path $PSScriptRoot 'common.ps1')
 
 function Get-ListeningPortForProcess([int]$ProcessId) {
     if (-not (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue)) { return $null }
-    return Get-NetTCPConnection -State Listen -OwningProcess $ProcessId -ErrorAction SilentlyContinue |
-        Select-Object -ExpandProperty LocalPort -First 1
+    $processIds = @($ProcessId)
+    $processes = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
+    do {
+        $childIds = @($processes |
+            Where-Object { $processIds -contains [int]$_.ParentProcessId } |
+            Select-Object -ExpandProperty ProcessId |
+            Where-Object { $processIds -notcontains [int]$_ })
+        $processIds += $childIds
+    } while ($childIds.Count)
+    foreach ($candidatePid in $processIds) {
+        $port = Get-NetTCPConnection -State Listen -OwningProcess $candidatePid -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty LocalPort -First 1
+        if ($port) { return $port }
+    }
+    return $null
 }
 
 function Get-AvailablePort([int[]]$Candidates) {
@@ -19,7 +29,7 @@ function Get-AvailablePort([int[]]$Candidates) {
 }
 
 try {
-    $webPidFile = Join-Path $PidRoot 'web.pid'
+    $webPidFile = Join-Path $PidRoot 'control-plane.pid'
     if (Test-Path -LiteralPath $webPidFile) {
         $runningWebPid = [int](Get-Content -LiteralPath $webPidFile -Raw)
         if (Get-Process -Id $runningWebPid -ErrorAction SilentlyContinue) {
@@ -33,14 +43,11 @@ try {
         }
     }
 
-    $requiredRuntimeFiles = @($NodeExe, $BaselinePython)
-    if (-not $SkipExpert) { $requiredRuntimeFiles += $FoulPlayPython }
+    $requiredRuntimeFiles = @($NodeExe, $ControlPython)
     $runtimeReady = -not ($requiredRuntimeFiles | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) })
     if (-not $runtimeReady) {
         Write-Host 'First launch: preparing the project-local runtime. This can take several minutes.' -ForegroundColor Cyan
-        $bootstrapArguments = @{}
-        if ($SkipExpert) { $bootstrapArguments.SkipExpert = $true }
-        & (Join-Path $PSScriptRoot 'bootstrap.ps1') @bootstrapArguments
+        & (Join-Path $PSScriptRoot 'bootstrap.ps1')
     }
 
     # Prefer the documented ports, then move to a nearby free port. This also
@@ -55,7 +62,6 @@ try {
         WebPort = $webPort
         ShowdownPort = $showdownPort
         NoBrowser = $NoBrowser
-        SkipExpert = $SkipExpert
     }
     & (Join-Path $PSScriptRoot 'start-local.ps1') @startArguments
 } catch {

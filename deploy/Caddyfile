@@ -19,6 +19,18 @@
 		reverse_proxy showdown:8000
 	}
 
+	handle /runtime/* {
+		reverse_proxy control-plane:8080
+	}
+
+	handle /api/meta/* {
+		reverse_proxy control-plane:8080
+	}
+
+	handle /data/pokemonai-teams.json {
+		reverse_proxy control-plane:8080
+	}
+
 	handle {
 		root * /srv
 		@pokemonai_root path /

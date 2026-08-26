@@ -7,6 +7,7 @@
 
 import { Config, PS } from "./client-main";
 import { PokemonAIApp } from "./pokemonai-app";
+import { reinstallPokemonAILocalTeamBridge } from "./pokemonai/teams";
 
 declare const SockJS: any;
 declare const POKEMON_SHOWDOWN_TESTCLIENT_KEY: string | undefined;
@@ -394,6 +395,10 @@ export class PSStorage {
 			if (data === 'tnull' && !PS.teams.list.length) {
 				PS.teams.unpackAll(localStorage.getItem('showdown_teams_local'));
 			}
+			if (Config.pokemonaiApp) {
+				const remoteSave = PS.teams.save;
+				reinstallPokemonAILocalTeamBridge(remoteSave);
+			}
 			break;
 		case 'a':
 			if (data === 'a0') {
@@ -485,6 +490,7 @@ interface NetRequestOptions {
 	method?: 'GET' | 'POST';
 	body?: string | PostData;
 	query?: PostData;
+	headers?: Record<string, string>;
 }
 class HttpError extends Error {
 	statusCode?: number;
@@ -524,7 +530,7 @@ class NetRequest {
 			xhr.onreadystatechange = function () {
 				const DONE = 4;
 				if (xhr.readyState === DONE) {
-					if (xhr.status === 200) {
+					if (xhr.status >= 200 && xhr.status < 300) {
 						resolve(xhr.responseText || '');
 						return;
 					}
@@ -532,8 +538,13 @@ class NetRequest {
 					reject(err);
 				}
 			};
+			for (const [name, value] of Object.entries(opts.headers || {})) {
+				xhr.setRequestHeader(name, value);
+			}
 			if (opts.body) {
-				xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+				if (!opts.headers?.['Content-Type']) {
+					xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+				}
 				xhr.send(Net.encodeQuery(opts.body));
 			} else {
 				xhr.send();

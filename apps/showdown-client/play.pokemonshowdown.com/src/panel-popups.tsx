@@ -13,6 +13,7 @@ import { ChatUserList, PSTextarea, type ChatRoom } from "./panel-chat";
 import { PSRoomPanel, PSPanelWrapper, PSView } from "./panels";
 import { PSHeader } from "./panel-topbar";
 import { PokemonAIApp } from "./pokemonai-app";
+import { navigatePokemonAI } from "./pokemonai/navigation";
 
 const WARNING_SECONDS = 5;
 const BATTLE_LAYOUT_LABELS: Record<BattleLayoutPreference, string> = {
@@ -260,7 +261,7 @@ class UserPanel extends PSRoomPanel<UserRoom> {
 					<button class="button" data-href={`useroptions-${user.userid}-${room.parentRoomid || ''}`}>{'\u2026'}</button>
 				</p>
 			));
-			if (isSelf) {
+			if (isSelf && !PokemonAIApp.isAI()) {
 				buttonbar.push(
 					<hr />,
 					<p class="buttonbar" style="text-align: right">
@@ -531,6 +532,7 @@ class VolumePanel extends PSRoomPanel {
 	static readonly id = 'volume';
 	static readonly routes = ['volume'];
 	static readonly location = 'popup';
+	static readonly noURL = true;
 
 	setVolume = (e: Event) => {
 		const slider = e.currentTarget as HTMLInputElement;
@@ -599,6 +601,7 @@ class OptionsPanel extends PSRoomPanel {
 	static readonly id = 'options';
 	static readonly routes = ['options'];
 	static readonly location = 'modal-popup';
+	static readonly noURL = true;
 
 	override componentDidMount() {
 		super.componentDidMount();
@@ -692,7 +695,7 @@ class OptionsPanel extends PSRoomPanel {
 				<button class="button" data-href="avatars">Avatar...</button>
 			</p>
 
-			{PS.user.named && (PS.user.registered?.userid === PS.user.userid ?
+			{!PokemonAIApp.isAI() && PS.user.named && (PS.user.registered?.userid === PS.user.userid ?
 				<button className="button" data-href="changepassword">Password...</button> :
 				<button className="button" data-href="register">Register</button>)}
 
@@ -830,12 +833,12 @@ class OptionsPanel extends PSRoomPanel {
 				</label>
 			</p>
 			<hr />
-			{PS.user.named ? <p class="buttonbar" style="text-align: right">
+			{!PokemonAIApp.isAI() && (PS.user.named ? <p class="buttonbar" style="text-align: right">
 				<button class="button" data-href="login"><i class="fa fa-pencil" aria-hidden></i> Change name</button> {}
 				<button class="button" data-cmd="/logout"><i class="fa fa-power-off" aria-hidden></i> Log out</button>
 			</p> : <p class="buttonbar" style="text-align: right">
 				<button class="button" data-href="login"><i class="fa fa-pencil" aria-hidden></i> Choose name</button>
-			</p> }
+			</p>)}
 		</div></PSPanelWrapper>;
 	}
 }
@@ -871,6 +874,7 @@ class LoginPanel extends PSRoomPanel {
 	static readonly id = 'login';
 	static readonly routes = ['login'];
 	static readonly location = 'modal-popup';
+	static readonly noURL = true;
 	declare state: { passwordShown?: boolean };
 
 	override componentDidMount() {
@@ -1042,10 +1046,25 @@ class BattleForfeitPanel extends PSRoomPanel {
 	static readonly routes = ['forfeitbattle'];
 	static readonly location = 'modal-popup';
 	static readonly noURL = true;
+	returnHomeAfterForfeit = () => {
+		setTimeout(() => void navigatePokemonAI('home'), 0);
+	};
 
 	override render() {
 		const room = this.props.room;
 		const battleRoom = room.getParent() as BattleRoom;
+
+		if (Config.pokemonaiApp) return <PSPanelWrapper room={room} width={420}><div class="pad pokemonai-forfeit-confirm">
+			<h2>退出对战？</h2>
+			<p>退出将判定本场对战失败，并返回首页。</p>
+			<p class="buttonbar">
+				<button
+					data-cmd="/closeand /inopener /closeand /forfeit"
+					onClick={this.returnHomeAfterForfeit} class="button danger"
+				><strong>投降并退出</strong></button> {}
+				<button type="button" data-cmd="/close" class="button">继续对战</button>
+			</p>
+		</div></PSPanelWrapper>;
 
 		return <PSPanelWrapper room={room} width={480}><div class="pad">
 			<p>Forfeiting makes you lose the battle. Are you sure?</p>

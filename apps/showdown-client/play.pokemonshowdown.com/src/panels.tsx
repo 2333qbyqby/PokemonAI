@@ -17,7 +17,7 @@ import { BattleTooltips } from "./battle-tooltips";
 import { Net } from "./client-connection";
 import type { PSModel, PSStreamModel, PSSubscription } from "./client-core";
 import {
-	NARROW_MODE_HEADER_WIDTH, PS, type PSRoom, type PSRoomFocusOptions, type RoomID, VERTICAL_HEADER_WIDTH,
+	Config, NARROW_MODE_HEADER_WIDTH, PS, type PSRoom, type PSRoomFocusOptions, type RoomID, VERTICAL_HEADER_WIDTH,
 } from "./client-main";
 import type { ChatRoom } from "./panel-chat";
 import { PSHeader, PSMiniHeader } from "./panel-topbar";
@@ -27,6 +27,16 @@ export const EXTERNAL_REDIRECTS = /^(appeals?|rooms?suggestions?|suggestions?|ad
 export class PSRouter {
 	roomid = '' as RoomID;
 	panelState = '';
+	routeChangeGuard?: (event: Event) => boolean;
+	nextHistoryMode: 'auto' | 'replace' = 'auto';
+	replaceNextNavigation() {
+		this.nextHistoryMode = 'replace';
+	}
+	consumeHistoryMode() {
+		const mode = this.nextHistoryMode;
+		this.nextHistoryMode = 'auto';
+		return mode;
+	}
 	constructor() {
 		const currentRoomid = location.pathname.slice(1);
 		if (/^[a-z0-9-]*$/.test(currentRoomid)) {
@@ -121,11 +131,17 @@ export class PSRouter {
 		}
 		PS.subscribe(() => {
 			const { roomid, changed, newTitle } = this.updatePanelState();
-			if (changed) location.hash = roomid ? `#${roomid}` : '';
+			const historyMode = this.consumeHistoryMode();
+			if (changed && historyMode === 'replace' && window.history) {
+				history.replaceState(this.panelState, '', roomid ? `#${roomid}` : location.pathname + location.search);
+			} else if (changed) {
+				location.hash = roomid ? `#${roomid}` : '';
+			}
 			// n.b. must be done after changing hash, so history entry has the old title
 			document.title = newTitle;
 		});
 		window.addEventListener('hashchange', e => {
+			if (this.routeChangeGuard && !this.routeChangeGuard(e)) return;
 			// really dumb hack, but it's not like back/forward has ever been very reliable
 			if (PS.popups.length && PS.rooms[PS.popups[PS.popups.length - 1]]?.noURL) return;
 			const possibleRoomid = location.hash.slice(1);
@@ -155,7 +171,10 @@ export class PSRouter {
 		}
 		PS.subscribe(() => {
 			const { roomid, changed, newTitle } = this.updatePanelState();
-			if (changed) {
+			const historyMode = this.consumeHistoryMode();
+			if (changed && historyMode === 'replace') {
+				history.replaceState(this.panelState, '', `/${roomid}`);
+			} else if (changed) {
 				history.pushState(this.panelState, '', `/${roomid}`);
 			} else if (changed !== null) {
 				history.replaceState(this.panelState, '', `/${roomid}`);
@@ -164,13 +183,15 @@ export class PSRouter {
 			document.title = newTitle;
 		});
 		window.addEventListener('popstate', e => {
+			if (this.routeChangeGuard && !this.routeChangeGuard(e)) return;
 			const possibleRoomid = location.pathname.slice(1);
 			let roomid: RoomID | null = null;
 			if (/^[a-z0-9-]*$/.test(possibleRoomid)) {
 				roomid = possibleRoomid as RoomID;
 			}
-			if (typeof e.state === 'string') {
-				const [leftRoomid, rightRoomid] = e.state.split('..') as RoomID[];
+			const panelState = typeof e.state === 'string' ? e.state : e.state?.panelState;
+			if (typeof panelState === 'string') {
+				const [leftRoomid, rightRoomid] = panelState.split('..') as RoomID[];
 				if (rightRoomid) {
 					PS.addRoom({ id: leftRoomid, location: 'left', autofocus: false });
 					PS.addRoom({ id: rightRoomid, location: 'right', autofocus: false });
@@ -1529,6 +1550,11 @@ export class PSView extends preact.Component {
 	}
 	static posStyle(room: PSRoom) {
 		if (PS.leftPanelWidth === null) {
+			if (Config.pokemonaiApp && room === PS.panel) {
+				const battleRoom = room as any;
+				const lockedBattle = room.type === 'battle' && !!battleRoom.side && !!battleRoom.battle && !battleRoom.battle.ended;
+				return { top: '50px', bottom: lockedBattle ? '0' : '58px', left: '0', minWidth: 'none' };
+			}
 			// vertical mode
 			if (room === PS.panel) {
 				// const minWidth = Math.min(500, Math.max(320, window.innerWidth - 9));
